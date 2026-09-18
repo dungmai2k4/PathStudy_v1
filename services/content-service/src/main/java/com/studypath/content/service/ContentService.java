@@ -70,7 +70,11 @@ public class ContentService {
 
     // --- Lesson APIs by Topic ---
     public List<LessonDto> getLessonsByTopicId(UUID topicId) {
-        return lessonRepository.findByTopicIdOrderByDisplayOrderAsc(topicId).stream()
+        List<LessonEntity> lessons = lessonRepository.findByTopicIdOrderByDisplayOrderAsc(topicId);
+        if (lessons.isEmpty()) {
+            lessons = lessonRepository.findBySkillIdOrderByDisplayOrderAsc(topicId);
+        }
+        return lessons.stream()
                 .map(lesson -> toLessonDto(lesson, false))
                 .collect(Collectors.toList());
     }
@@ -116,6 +120,105 @@ public class ContentService {
         return miniQuizRepository.findByLessonId(lessonId).stream()
                 .map(this::toMiniQuizDto)
                 .collect(Collectors.toList());
+    }
+
+    // --- Manager Mutation APIs ---
+
+    @Transactional
+    public SubjectDto createSubject(CreateSubjectRequest request) {
+        SubjectEntity entity = SubjectEntity.builder()
+                .code(request.getCode().toUpperCase().trim())
+                .name(request.getName().trim())
+                .description(request.getDescription())
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .isAvailable(true)
+                .status("ACTIVE")
+                .build();
+        entity = subjectRepository.save(entity);
+        return toSubjectDto(entity);
+    }
+
+    @Transactional
+    public SubjectDto updateSubject(UUID id, CreateSubjectRequest request) {
+        SubjectEntity entity = subjectRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy môn học với ID: " + id));
+        entity.setName(request.getName());
+        entity.setCode(request.getCode().toUpperCase().trim());
+        if (request.getDescription() != null) entity.setDescription(request.getDescription());
+        if (request.getDisplayOrder() != null) entity.setDisplayOrder(request.getDisplayOrder());
+        entity = subjectRepository.save(entity);
+        return toSubjectDto(entity);
+    }
+
+    @Transactional
+    public void deleteSubject(UUID id) {
+        subjectRepository.deleteById(id);
+    }
+
+    @Transactional
+    public SkillDto createSkill(CreateSkillRequest request) {
+        SkillEntity entity = SkillEntity.builder()
+                .subjectId(request.getSubjectId())
+                .code(request.getCode().trim())
+                .name(request.getName().trim())
+                .description(request.getDescription())
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .priority(2)
+                .status("ACTIVE")
+                .build();
+        entity = skillRepository.save(entity);
+        return toSkillDto(entity);
+    }
+
+    @Transactional
+    public SkillDto updateSkill(UUID id, CreateSkillRequest request) {
+        SkillEntity entity = skillRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy kỹ năng với ID: " + id));
+        entity.setName(request.getName());
+        entity.setCode(request.getCode().trim());
+        if (request.getDescription() != null) entity.setDescription(request.getDescription());
+        if (request.getDisplayOrder() != null) entity.setDisplayOrder(request.getDisplayOrder());
+        entity = skillRepository.save(entity);
+        return toSkillDto(entity);
+    }
+
+    @Transactional
+    public void deleteSkill(UUID id) {
+        skillRepository.deleteById(id);
+    }
+
+    @Transactional
+    public LessonDto createLesson(CreateLessonRequest request) {
+        LessonEntity entity = LessonEntity.builder()
+                .skillId(request.getSkillId())
+                .topicId(request.getTopicId())
+                .title(request.getTitle().trim())
+                .content(request.getContent())
+                .isRemedial(Boolean.TRUE.equals(request.getIsRemedial()))
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .status("ACTIVE")
+                .build();
+        entity = lessonRepository.save(entity);
+        return toLessonDto(entity, false);
+    }
+
+    @Transactional
+    public LessonDto updateLesson(UUID id, CreateLessonRequest request) {
+        LessonEntity entity = lessonRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy bài học với ID: " + id));
+        entity.setTitle(request.getTitle());
+        entity.setContent(request.getContent());
+        if (request.getSkillId() != null) entity.setSkillId(request.getSkillId());
+        if (request.getTopicId() != null) entity.setTopicId(request.getTopicId());
+        if (request.getDisplayOrder() != null) entity.setDisplayOrder(request.getDisplayOrder());
+        if (request.getIsRemedial() != null) entity.setIsRemedial(request.getIsRemedial());
+        entity = lessonRepository.save(entity);
+        return toLessonDto(entity, false);
+    }
+
+    @Transactional
+    public void deleteLesson(UUID id) {
+        lessonRepository.deleteById(id);
     }
 
     // --- Mappers ---

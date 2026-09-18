@@ -178,6 +178,18 @@ public class ContentDataSeeder implements CommandLineRunner {
     }
 
     private void seedModulesAndTopics() {
+        // Backfill topicId for any existing lessons where topic_id is null
+        List<LessonEntity> existingLessons = lessonRepository.findAll();
+        for (LessonEntity l : existingLessons) {
+            if (l.getTopicId() == null && l.getSkillId() != null) {
+                l.setTopicId(l.getSkillId());
+                if (l.getIsRemedial() == null) {
+                    l.setIsRemedial(false);
+                }
+                lessonRepository.save(l);
+            }
+        }
+
         if (moduleRepository.count() > 0) {
             log.info("Modules and Topics already seeded.");
             return;
@@ -399,7 +411,7 @@ public class ContentDataSeeder implements CommandLineRunner {
         miniQuizRepository.save(MiniQuizEntity.builder()
                 .lessonId(l1.getId())
                 .title("Quiz 1: Hiện tại hoàn thành")
-                .description("Trả lời câu hỏi sau để hoàn thành bài và mở khóa bài tiếp theo.")
+                .description("Trả lời 3 câu hỏi sau để kiểm tra mức độ hiểu bài và mở khóa bài tiếp theo.")
                 .questionsJson("""
                         [
                           {
@@ -407,6 +419,18 @@ public class ContentDataSeeder implements CommandLineRunner {
                             "options": ["works", "has worked", "worked", "is working"],
                             "answer": "has worked",
                             "explanation": "Dấu hiệu 'for over three years' diễn tả hành động kéo dài từ quá khứ đến hiện tại -> chọn 'has worked'."
+                          },
+                          {
+                            "question": "She hasn't finished her graduation thesis ________.",
+                            "options": ["already", "yet", "since", "just"],
+                            "answer": "yet",
+                            "explanation": "Từ 'yet' thường đứng ở cuối câu phủ định hoặc nghi vấn trong thì Hiện tại hoàn thành."
+                          },
+                          {
+                            "question": "How many international conferences ________ you ________ so far this year?",
+                            "options": ["did / attend", "have / attended", "do / attend", "were / attending"],
+                            "answer": "have / attended",
+                            "explanation": "Dấu hiệu 'so far this year' (cho đến nay trong năm nay) đi với Hiện tại hoàn thành 'have attended'."
                           }
                         ]
                         """)
@@ -452,7 +476,7 @@ public class ContentDataSeeder implements CommandLineRunner {
         miniQuizRepository.save(MiniQuizEntity.builder()
                 .lessonId(l2.getId())
                 .title("Quiz 2: Quá khứ hoàn thành")
-                .description("Trả lời câu hỏi sau để hoàn thành bài và mở khóa bài tiếp theo.")
+                .description("Trả lời 3 câu hỏi sau để hoàn thành bài và mở khóa bài tiếp theo.")
                 .questionsJson("""
                         [
                           {
@@ -460,6 +484,18 @@ public class ContentDataSeeder implements CommandLineRunner {
                             "options": ["was extinguished", "had been extinguished", "has been extinguished", "extinguished"],
                             "answer": "had been extinguished",
                             "explanation": "Cấu trúc 'By the time + S + V(quá khứ đơn)' -> vế chính chia Quá khứ hoàn thành (bị động: had been extinguished)."
+                          },
+                          {
+                            "question": "Hardly had the teacher entered the classroom ________ the students stopped talking.",
+                            "options": ["than", "when", "then", "after"],
+                            "answer": "when",
+                            "explanation": "Cấu trúc đảo ngữ 'Hardly + had + S + V3/ed + when + S + V(quá khứ đơn)'."
+                          },
+                          {
+                            "question": "Lan realized she ________ her passport at the hotel only after arriving at the airport.",
+                            "options": ["left", "has left", "had left", "was leaving"],
+                            "answer": "had left",
+                            "explanation": "Hành động để quên hộ chiếu xảy ra trước khi đến sân bay -> dùng Quá khứ hoàn thành 'had left'."
                           }
                         ]
                         """)
@@ -491,7 +527,7 @@ public class ContentDataSeeder implements CommandLineRunner {
         miniQuizRepository.save(MiniQuizEntity.builder()
                 .lessonId(l3.getId())
                 .title("Quiz 3: Phân biệt HTHT và QKĐ")
-                .description("Trả lời câu hỏi sau để hoàn thành bài học cuối cùng của topic.")
+                .description("Trả lời 3 câu hỏi sau để hoàn thành bài học cuối cùng của topic.")
                 .questionsJson("""
                         [
                           {
@@ -499,6 +535,18 @@ public class ContentDataSeeder implements CommandLineRunner {
                             "options": ["wrote", "has written", "writes", "had written"],
                             "answer": "wrote",
                             "explanation": "Shakespeare là nhân vật lịch sử đã mất trong quá khứ, hành động viết kịch đã kết thúc hẳn -> dùng Quá khứ đơn 'wrote'."
+                          },
+                          {
+                            "question": "I ________ my wallet yesterday, but fortunately someone ________ it to me this morning.",
+                            "options": ["lost / returned", "have lost / returned", "had lost / has returned", "lost / has returned"],
+                            "answer": "lost / returned",
+                            "explanation": "Cả hai mốc thời gian 'yesterday' và 'this morning' đều xác định trong quá khứ -> dùng Quá khứ đơn."
+                          },
+                          {
+                            "question": "Up to now, our team ________ three major technical milestones in the project.",
+                            "options": ["achieved", "has achieved", "had achieved", "achieves"],
+                            "answer": "has achieved",
+                            "explanation": "'Up to now' (cho đến nay) là dấu hiệu điển hình của thì Hiện tại hoàn thành."
                           }
                         ]
                         """)
@@ -523,6 +571,34 @@ public class ContentDataSeeder implements CommandLineRunner {
                 .isRemedial(true)
                 .build();
         lessonRepository.save(remedialTenses);
+
+        miniQuizRepository.save(MiniQuizEntity.builder()
+                .lessonId(remedialTenses.getId())
+                .title("Quiz: Ôn tập Củng cố Phối hợp thì")
+                .description("Trả lời 3 câu hỏi củng cố kiến thức trước khi kiểm tra lại.")
+                .questionsJson("""
+                        [
+                          {
+                            "question": "He has lived in Da Nang ________ he graduated from university.",
+                            "options": ["since", "for", "in", "when"],
+                            "answer": "since",
+                            "explanation": "Sau 'since' là mốc thời gian / mệnh đề quá khứ đơn 'he graduated'."
+                          },
+                          {
+                            "question": "The train ________ before we arrived at the platform.",
+                            "options": ["left", "has left", "had left", "was leaving"],
+                            "answer": "had left",
+                            "explanation": "Hành động tàu rời ga xảy ra trước hành động đến sân ga ('before we arrived') -> Quá khứ hoàn thành."
+                          },
+                          {
+                            "question": "Mr. Nam ________ in this high school since 2015.",
+                            "options": ["taught", "has taught", "had taught", "teaches"],
+                            "answer": "has taught",
+                            "explanation": "Hành động bắt đầu năm 2015 và vẫn tiếp diễn đến nay -> 'has taught'."
+                          }
+                        ]
+                        """)
+                .build());
     }
 
     private void seedConditionalsLessons(TopicEntity topCond) {
@@ -550,7 +626,7 @@ public class ContentDataSeeder implements CommandLineRunner {
         miniQuizRepository.save(MiniQuizEntity.builder()
                 .lessonId(l1.getId())
                 .title("Quiz: Điều kiện loại 0")
-                .description("Kiểm tra nhanh kiến thức câu điều kiện loại 0.")
+                .description("Kiểm tra nhanh 3 câu hỏi về câu điều kiện loại 0.")
                 .questionsJson("""
                         [
                           {
@@ -558,6 +634,18 @@ public class ContentDataSeeder implements CommandLineRunner {
                             "options": ["get", "will get", "got", "would get"],
                             "answer": "get",
                             "explanation": "Quy luật pha màu hiển nhiên -> dùng điều kiện loại 0: get."
+                          },
+                          {
+                            "question": "If water reaches 100 degrees Celsius, it ________.",
+                            "options": ["boils", "will boil", "boiled", "would boil"],
+                            "answer": "boils",
+                            "explanation": "Sự thật hiển nhiên khoa học dùng câu điều kiện loại 0: hiện tại đơn cả 2 vế."
+                          },
+                          {
+                            "question": "When iron ________ exposed to air and moisture, it rusts easily.",
+                            "options": ["is", "was", "will be", "has been"],
+                            "answer": "is",
+                            "explanation": "Quy luật hóa học tự nhiên -> câu điều kiện loại 0 dùng 'is'."
                           }
                         ]
                         """)
@@ -586,7 +674,7 @@ public class ContentDataSeeder implements CommandLineRunner {
         miniQuizRepository.save(MiniQuizEntity.builder()
                 .lessonId(l2.getId())
                 .title("Quiz: Điều kiện loại 1")
-                .description("Kiểm tra nhanh câu điều kiện loại 1.")
+                .description("Kiểm tra nhanh 3 câu hỏi về câu điều kiện loại 1.")
                 .questionsJson("""
                         [
                           {
@@ -594,6 +682,18 @@ public class ContentDataSeeder implements CommandLineRunner {
                             "options": ["rains", "will rain", "rained", "has rained"],
                             "answer": "rains",
                             "explanation": "Mệnh đề If của câu điều kiện loại 1 chia ở Hiện tại đơn -> rains."
+                          },
+                          {
+                            "question": "________ you meet Sarah at the library, please remind her of our group assignment.",
+                            "options": ["Should", "Were", "Had", "Unless"],
+                            "answer": "Should",
+                            "explanation": "Đảo ngữ câu điều kiện loại 1: 'Should + S + V(nguyên mẫu)'."
+                          },
+                          {
+                            "question": "Unless you ________ hard now, you won't pass the upcoming national exam.",
+                            "options": ["study", "don't study", "will study", "studied"],
+                            "answer": "study",
+                            "explanation": "'Unless' = 'If not'. Mệnh đề Unless dùng thể khẳng định: 'Unless you study'."
                           }
                         ]
                         """)
@@ -622,7 +722,7 @@ public class ContentDataSeeder implements CommandLineRunner {
         miniQuizRepository.save(MiniQuizEntity.builder()
                 .lessonId(l3.getId())
                 .title("Quiz: Điều kiện loại 2")
-                .description("Kiểm tra nhanh câu điều kiện loại 2.")
+                .description("Kiểm tra nhanh 3 câu hỏi về câu điều kiện loại 2.")
                 .questionsJson("""
                         [
                           {
@@ -630,6 +730,18 @@ public class ContentDataSeeder implements CommandLineRunner {
                             "options": ["am", "were", "was being", "have been"],
                             "answer": "were",
                             "explanation": "Câu giả định khuyên bảo 'If I were you' -> chọn 'were'."
+                          },
+                          {
+                            "question": "________ I to have more free time, I would participate in community volunteer projects.",
+                            "options": ["Were", "Had", "Should", "If"],
+                            "answer": "Were",
+                            "explanation": "Đảo ngữ câu điều kiện loại 2: 'Were + S + to-V'."
+                          },
+                          {
+                            "question": "If this laptop ________ cheaper, I would buy it right away.",
+                            "options": ["is", "were", "had been", "will be"],
+                            "answer": "were",
+                            "explanation": "Giả định trái thực tế hiện tại dùng câu điều kiện loại 2 (động từ to be là 'were')."
                           }
                         ]
                         """)
@@ -657,7 +769,7 @@ public class ContentDataSeeder implements CommandLineRunner {
         miniQuizRepository.save(MiniQuizEntity.builder()
                 .lessonId(l1.getId())
                 .title("Quiz: Collocations")
-                .description("Kiểm tra cụm từ cố định.")
+                .description("Kiểm tra nhanh 3 câu hỏi về cụm từ cố định.")
                 .questionsJson("""
                         [
                           {
@@ -665,6 +777,18 @@ public class ContentDataSeeder implements CommandLineRunner {
                             "options": ["progress", "advance", "growth", "step"],
                             "answer": "progress",
                             "explanation": "Cụm cố định là 'make progress' (tiến bộ)."
+                          },
+                          {
+                            "question": "You should always ________ into account all the safety guidelines before conducting the experiment.",
+                            "options": ["take", "make", "give", "bring"],
+                            "answer": "take",
+                            "explanation": "Cụm cố định là 'take into account' (tính đến, cân nhắc)."
+                          },
+                          {
+                            "question": "Please ________ close attention to the grammar notes on the whiteboard.",
+                            "options": ["pay", "spend", "cost", "take"],
+                            "answer": "pay",
+                            "explanation": "Cụm cố định là 'pay attention to' (chú ý đến)."
                           }
                         ]
                         """)
@@ -695,7 +819,7 @@ public class ContentDataSeeder implements CommandLineRunner {
         miniQuizRepository.save(MiniQuizEntity.builder()
                 .lessonId(l1.getId())
                 .title("Quiz: Word Forms")
-                .description("Kiểm tra cấu tạo từ.")
+                .description("Kiểm tra nhanh 3 câu hỏi về cấu tạo từ.")
                 .questionsJson("""
                         [
                           {
@@ -703,6 +827,18 @@ public class ContentDataSeeder implements CommandLineRunner {
                             "options": ["pollution", "pollute", "polluted", "polluting"],
                             "answer": "pollution",
                             "explanation": "Sau tính từ 'Environmental' cần một danh từ -> chọn 'pollution'."
+                          },
+                          {
+                            "question": "Regular exercise brings significant health ________ to people of all ages.",
+                            "options": ["benefits", "beneficial", "beneficially", "benefiting"],
+                            "answer": "benefits",
+                            "explanation": "Sau tính từ 'health' cần danh từ số nhiều 'benefits' (lợi ích sức khỏe)."
+                          },
+                          {
+                            "question": "He is a very ________ driver who never breaks traffic regulations.",
+                            "options": ["care", "careful", "carefully", "careless"],
+                            "answer": "careful",
+                            "explanation": "Đứng trước danh từ 'driver' cần tính từ mang nghĩa cẩn thận -> 'careful'."
                           }
                         ]
                         """)
@@ -731,7 +867,7 @@ public class ContentDataSeeder implements CommandLineRunner {
         miniQuizRepository.save(MiniQuizEntity.builder()
                 .lessonId(l1.getId())
                 .title("Quiz: Phrasal Verbs")
-                .description("Kiểm tra cụm động từ.")
+                .description("Kiểm tra nhanh 3 câu hỏi về cụm động từ.")
                 .questionsJson("""
                         [
                           {
@@ -739,6 +875,18 @@ public class ContentDataSeeder implements CommandLineRunner {
                             "options": ["carry out", "turn off", "look for", "give in"],
                             "answer": "carry out",
                             "explanation": "'carry out an experiment' nghĩa là tiến hành một thí nghiệm."
+                          },
+                          {
+                            "question": "He had to ________ the job offer because the salary was too low.",
+                            "options": ["turn down", "look after", "give up", "bring about"],
+                            "answer": "turn down",
+                            "explanation": "'turn down' = reject (từ chối lời mời)."
+                          },
+                          {
+                            "question": "She promised to ________ her neighbor's cat while they were away on vacation.",
+                            "options": ["look after", "give in", "take off", "turn up"],
+                            "answer": "look after",
+                            "explanation": "'look after' = take care of (chăm sóc)."
                           }
                         ]
                         """)
