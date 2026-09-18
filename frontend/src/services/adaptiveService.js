@@ -27,7 +27,7 @@ export const adaptiveService = {
     return response.data.data;
   },
 
-  // Unlock next skill/topic node when student passes test (>= 70%)
+  // Unlock next skill/topic node when student passes test (>= 80%)
   async unlockNextSkill(studentId, subjectId, skillId, topicId = null) {
     const response = await api.post('/api/v1/adaptive/study-path/unlock-next-skill', {
       studentId,
@@ -59,7 +59,7 @@ export const adaptiveService = {
     return response.data.data || [];
   },
 
-  // Handle topic test failed (< 70%): activate remedial lessons
+  // Handle topic test failed (< 80%): activate remedial lessons
   async handleTopicTestFailed(studentId, subjectId, topicId, scorePercentage) {
     const response = await api.post('/api/v1/adaptive/study-path/topic-test/failed', {
       studentId,

@@ -137,10 +137,10 @@ export default function PlacementTestPage() {
 
   if (loading) {
     return (
-      <div className="py-24 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-slate-600 font-semibold text-sm">
-          Đang khởi tạo ngân hàng câu hỏi ngẫu nhiên và xáo trộn đề thi...
+      <div className="py-20 flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-600 font-medium text-xs sm:text-sm">
+          Đang khởi tạo bài kiểm tra ngẫu nhiên và chuẩn bị đề thi...
         </p>
       </div>
     );
@@ -148,65 +148,65 @@ export default function PlacementTestPage() {
 
   // --- RESULT VIEW ---
   if (result) {
-    const isGood = result.accuracyPercentage >= 70;
+    const isGood = result.accuracyPercentage >= 80;
     const weakSkills = result.skillBreakdown?.filter((s) => s.accuracyPercentage < 60) || [];
 
     return (
-      <div className="max-w-4xl mx-auto space-y-8 py-4">
+      <div className="max-w-4xl mx-auto space-y-6 py-2">
         {/* Banner Result */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900 via-purple-950 to-slate-900 text-white p-8 sm:p-10 border border-indigo-900 shadow-2xl">
-          <div className="relative z-10 max-w-2xl space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-xs font-bold text-emerald-300">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-7 border border-slate-800 shadow-sm">
+          <div className="relative z-10 max-w-2xl space-y-2.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/30 text-xs font-semibold text-emerald-300">
               <CheckCircle className="w-3.5 h-3.5" />
               <span>Đã hoàn thành & Lưu vào lịch sử đánh giá</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               Báo Cáo Kết Quả Đánh Giá Năng Lực
             </h1>
-            <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
               Hệ thống đã phân tích chi tiết độ chính xác trên từng nhóm kỹ năng tiếng Anh để thiết kế lộ trình học thích ứng (Adaptive Learning Path) dành riêng cho bạn.
             </p>
           </div>
         </div>
 
         {/* Overall Score Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-2xl">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xl">
               {result.score}/{result.totalQuestions}
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-semibold uppercase">Số câu đúng</div>
-              <div className="text-xl font-bold text-slate-900">
+              <div className="text-[11px] text-slate-500 font-semibold uppercase">Số câu đúng</div>
+              <div className="text-lg font-bold text-slate-900">
                 {result.score} trên {result.totalQuestions} câu
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-2xl">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl">
               {result.accuracyPercentage}%
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-semibold uppercase">Độ chính xác</div>
-              <div className="text-xl font-bold text-slate-900">
+              <div className="text-[11px] text-slate-500 font-semibold uppercase">Độ chính xác</div>
+              <div className="text-lg font-bold text-slate-900">
                 {result.accuracyPercentage >= 80
-                  ? 'Nền tảng Tốt'
-                  : result.accuracyPercentage >= 50
+                  ? 'Nền tảng Tốt (≥80%)'
+                  : result.accuracyPercentage >= 60
                   ? 'Khá (Cần cải thiện)'
                   : 'Cần củng cố'}
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black text-2xl">
-              <TrendingUp className="w-7 h-7" />
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xl">
+              <TrendingUp className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-xs text-slate-500 font-semibold uppercase">Kỹ năng cần ưu tiên</div>
-              <div className="text-xl font-bold text-amber-700">
+              <div className="text-[11px] text-slate-500 font-semibold uppercase">Kỹ năng cần ưu tiên</div>
+              <div className="text-lg font-bold text-amber-700">
                 {weakSkills.length > 0 ? `${weakSkills.length} kỹ năng yếu` : 'Đồng đều tốt'}
               </div>
             </div>
@@ -214,9 +214,9 @@ export default function PlacementTestPage() {
         </div>
 
         {/* Skill Breakdown Table / Cards */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-900">
+            <h3 className="text-base font-bold text-slate-900">
               Chi tiết năng lực theo từng nhóm kỹ năng ({result.skillBreakdown?.length || 0})
             </h3>
             <span className="text-xs text-slate-500">
@@ -224,43 +224,43 @@ export default function PlacementTestPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {result.skillBreakdown?.map((s) => {
               const acc = s.accuracyPercentage;
               let badgeColor = 'bg-red-50 text-red-700 border-red-200';
-              let label = 'Cần củng cố';
+              let label = 'Cần củng cố (<60%)';
               let progressColor = 'bg-red-500';
 
-              if (acc >= 85) {
+              if (acc >= 80) {
                 badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                label = 'Xuất sắc';
+                label = 'Tốt (≥80%)';
                 progressColor = 'bg-emerald-500';
               } else if (acc >= 60) {
                 badgeColor = 'bg-blue-50 text-blue-700 border-blue-200';
-                label = 'Đạt yêu cầu';
+                label = 'Đạt yêu cầu (60-79%)';
                 progressColor = 'bg-blue-500';
               }
 
               return (
                 <div
                   key={s.skillId}
-                  className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3"
+                  className="p-4 rounded-lg border border-slate-200 bg-slate-50/60 space-y-2.5"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <h4 className="font-bold text-slate-900 text-sm leading-snug">
+                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm leading-snug">
                       {s.skillName}
                     </h4>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border shrink-0 ${badgeColor}`}>
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border shrink-0 ${badgeColor}`}>
                       {label}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>Số câu làm đúng: <strong>{s.correctCount} / {s.totalQuestions}</strong></span>
+                    <span>Số câu đúng: <strong>{s.correctCount} / {s.totalQuestions}</strong></span>
                     <span className="font-bold text-slate-800">{acc}%</span>
                   </div>
 
-                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                     <div
                       className={`h-full ${progressColor} transition-all duration-500`}
                       style={{ width: `${acc}%` }}
@@ -272,19 +272,19 @@ export default function PlacementTestPage() {
           </div>
 
           {/* Explanation Alert */}
-          <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 text-indigo-950 text-sm leading-relaxed flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-lg bg-indigo-50/80 border border-indigo-200 text-indigo-950 text-xs sm:text-sm leading-relaxed flex items-start gap-2.5">
+            <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
             <div>
               <strong className="font-bold text-indigo-900">Chiến lược Cá nhân hóa Thích ứng: </strong>
-              Khi bạn bấm nút "Tạo Lộ trình Học Cá Nhân", hệ thống sẽ đảo thứ tự lộ trình học, đưa các kỹ năng có kết quả thấp nhất lên vị trí bài học đầu tiên để củng cố ngay lập tức. Sau mỗi kỹ năng, bạn sẽ làm 1 bài kiểm tra kỹ năng để mở khóa kỹ năng kế tiếp!
+              Khi bạn bấm nút "Tạo Lộ trình Học Cá Nhân", hệ thống sẽ đảo thứ tự lộ trình học, đưa các kỹ năng có kết quả dưới 80% lên vị trí bài học ưu tiên để củng cố ngay lập tức. Sau mỗi kỹ năng, bạn sẽ làm 1 bài kiểm tra kỹ năng (đạt ≥80%) để mở khóa bài học kế tiếp!
             </div>
           </div>
 
           {/* Action CTA Button */}
-          <div className="pt-4 flex items-center justify-end gap-4">
+          <div className="pt-2 flex items-center justify-end gap-3">
             <Link
               to="/subjects"
-              className="px-5 py-3 rounded-2xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-semibold transition"
+              className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm font-semibold transition"
             >
               Xem danh mục môn học
             </Link>
@@ -292,18 +292,18 @@ export default function PlacementTestPage() {
             <button
               onClick={handleCreatePersonalizedPath}
               disabled={generatingPath}
-              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-base shadow-xl shadow-indigo-200 transition duration-200 flex items-center gap-3 cursor-pointer disabled:opacity-70"
+              className="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-xs transition duration-150 flex items-center gap-2 cursor-pointer disabled:opacity-70"
             >
               {generatingPath ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   <span>Đang khởi tạo lộ trình thích ứng...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-5 h-5" />
+                  <Sparkles className="w-4 h-4" />
                   <span>Tạo Lộ Trình Học Cá Nhân</span>
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
@@ -320,44 +320,44 @@ export default function PlacementTestPage() {
   const answeredCount = Object.keys(answers).length;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-5">
       {/* Test Header with Live Timer */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100 mb-1">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-100 mb-1">
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Khảo sát Năng lực Ban đầu (12 Câu ngẫu nhiên)</span>
+            <span>Khảo sát Năng lực Ban đầu ({totalQuestions} Câu ngẫu nhiên)</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900">
             {testData?.title || 'Khảo sát Năng lực Tiếng Anh THPT'}
           </h1>
         </div>
 
         {/* Live Timer Pill */}
         <div
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border font-mono font-bold text-base shadow-xs ${
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg border font-mono font-bold text-sm shadow-xs ${
             timeLeft < 180
               ? 'bg-red-50 border-red-300 text-red-700 animate-pulse'
               : 'bg-indigo-50 border-indigo-200 text-indigo-900'
           }`}
         >
-          <Clock className="w-5 h-5" />
+          <Clock className="w-4 h-4" />
           <span>{formatTime(timeLeft)}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 items-start">
         {/* Left side: Current Question Card */}
-        <div className="lg:col-span-3 space-y-5">
+        <div className="lg:col-span-3 space-y-4">
           {currentQ ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
               {/* Question Meta Header */}
-              <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
+              <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-md bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
                     {currentQIndex + 1}
                   </span>
-                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700">
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-slate-100 text-slate-700">
                     {currentQ.skillName || 'Kỹ năng'}
                   </span>
                 </div>
@@ -368,12 +368,12 @@ export default function PlacementTestPage() {
               </div>
 
               {/* Question Content */}
-              <div className="text-lg sm:text-xl font-bold text-slate-900 leading-relaxed">
+              <div className="text-base sm:text-lg font-semibold text-slate-900 leading-relaxed">
                 {currentQ.content}
               </div>
 
               {/* Options */}
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {currentQ.options?.map((opt, idx) => {
                   const letters = ['A', 'B', 'C', 'D'];
                   const isSelected = answers[currentQ.questionId] === opt.id;
@@ -382,18 +382,18 @@ export default function PlacementTestPage() {
                     <button
                       key={opt.id}
                       onClick={() => handleSelectOption(currentQ.questionId, opt.id)}
-                      className={`w-full p-4 rounded-2xl border text-left text-sm sm:text-base font-medium transition flex items-center justify-between gap-3 cursor-pointer ${
+                      className={`w-full p-3 rounded-lg border text-left text-xs sm:text-sm font-medium transition flex items-center justify-between gap-3 cursor-pointer ${
                         isSelected
-                          ? 'bg-indigo-50 border-indigo-600 text-indigo-950 shadow-sm ring-2 ring-indigo-500/20 font-semibold'
-                          : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100 text-slate-800'
+                          ? 'bg-indigo-50 border-indigo-600 text-indigo-950 font-semibold'
+                          : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         <span
-                          className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center ${
+                          className={`w-6 h-6 rounded text-xs font-bold flex items-center justify-center ${
                             isSelected
                               ? 'bg-indigo-600 text-white'
-                              : 'bg-white border border-slate-300 text-slate-700'
+                              : 'bg-slate-100 border border-slate-200 text-slate-600'
                           }`}
                         >
                           {letters[idx] || (idx + 1)}
@@ -401,78 +401,78 @@ export default function PlacementTestPage() {
                         <span>{opt.optionContent}</span>
                       </div>
 
-                      {isSelected && <Check className="w-5 h-5 text-indigo-600" />}
+                      {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
                     </button>
                   );
                 })}
               </div>
 
               {/* Question Navigation Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                 <button
                   disabled={currentQIndex === 0}
                   onClick={() => setCurrentQIndex((prev) => prev - 1)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Câu trước</span>
                 </button>
 
                 {currentQIndex < totalQuestions - 1 ? (
                   <button
                     onClick={() => setCurrentQIndex((prev) => prev + 1)}
-                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-xs"
+                    className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <span>Câu tiếp theo</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 ) : (
                   <button
                     onClick={handleSubmitTest}
                     disabled={submitting}
-                    className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold transition flex items-center gap-2 cursor-pointer shadow-md shadow-emerald-200"
+                    className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <span>Nộp bài khảo sát</span>
-                    <CheckCircle className="w-4 h-4" />
+                    <CheckCircle className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </div>
           ) : (
-            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 text-slate-500">
+            <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-500 text-sm">
               Không có câu hỏi nào.
             </div>
           )}
         </div>
 
         {/* Right side: Questions Palette & Submit Box */}
-        <div className="space-y-5">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">Mục lục câu hỏi</h3>
+              <h3 className="text-xs font-bold text-slate-900">Mục lục câu hỏi</h3>
               <span className="text-xs font-bold text-indigo-600">
                 {answeredCount}/{totalQuestions} đã làm
               </span>
             </div>
 
             {/* Grid of question numbers */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-1.5">
               {questions.map((q, idx) => {
                 const isAnswered = !!answers[q.questionId];
                 const isCurrent = idx === currentQIndex;
 
                 let btnClass = 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200';
                 if (isCurrent) {
-                  btnClass = 'bg-indigo-600 text-white font-bold ring-2 ring-indigo-400';
+                  btnClass = 'bg-indigo-600 text-white font-bold ring-1 ring-indigo-500';
                 } else if (isAnswered) {
-                  btnClass = 'bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold';
+                  btnClass = 'bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold';
                 }
 
                 return (
                   <button
                     key={q.id || idx}
                     onClick={() => setCurrentQIndex(idx)}
-                    className={`h-10 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center ${btnClass}`}
+                    className={`h-8 rounded-md border text-xs font-semibold transition cursor-pointer flex items-center justify-center ${btnClass}`}
                   >
                     {idx + 1}
                   </button>
@@ -480,13 +480,13 @@ export default function PlacementTestPage() {
               })}
             </div>
 
-            <div className="pt-2 border-t border-slate-100 space-y-2 text-xs text-slate-500">
+            <div className="pt-2 border-t border-slate-100 space-y-1.5 text-xs text-slate-500">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <span className="w-2.5 h-2.5 rounded bg-emerald-500"></span>
                 <span>Đã trả lời</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-slate-300"></span>
+                <span className="w-2.5 h-2.5 rounded bg-slate-300"></span>
                 <span>Chưa trả lời</span>
               </div>
             </div>
@@ -495,16 +495,16 @@ export default function PlacementTestPage() {
             <button
               onClick={handleSubmitTest}
               disabled={submitting}
-              className="w-full mt-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-200 transition duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              className="w-full mt-3 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
             >
               {submitting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   <span>Đang chấm điểm...</span>
                 </>
               ) : (
                 <>
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle className="w-3.5 h-3.5" />
                   <span>Nộp bài khảo sát</span>
                 </>
               )}

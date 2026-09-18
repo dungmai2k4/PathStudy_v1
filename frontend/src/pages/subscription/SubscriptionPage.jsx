@@ -48,35 +48,35 @@ export default function SubscriptionPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="text-center max-w-2xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold mb-3">
+        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-amber-100 text-amber-800 text-xs font-semibold mb-2.5">
           <Sparkles className="w-3.5 h-3.5 text-amber-600" />
           <span>PathStudy Pro Subscription</span>
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
           Nâng Cấp Tài Khoản Pro
         </h1>
-        <p className="text-sm text-slate-500 mt-2">
-          Mở khóa toàn diện tiềm năng học tập với các tính năng thích ứng chuyên sâu, ngân hàng câu hỏi nâng cao và không giới hạn Retest.
+        <p className="text-xs sm:text-sm text-slate-500 mt-1.5 leading-relaxed">
+          Mở khóa toàn diện tiềm năng học tập với các tính năng thích ứng chuyên sâu, kho học liệu nâng cao và không giới hạn lượt Retest.
         </p>
       </div>
 
       {message && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-2.5">
-          <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+        <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs sm:text-sm flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
           <span>{message}</span>
         </div>
       )}
 
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2.5">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {isPro && (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold">
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold">
             <Award className="w-5 h-5" />
           </div>
           <div>
@@ -89,26 +89,26 @@ export default function SubscriptionPage() {
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-slate-500 text-sm">
+        <div className="py-12 text-center text-slate-500 text-xs sm:text-sm">
           Đang tải danh sách gói Pro...
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className="bg-white rounded-3xl border-2 border-slate-200 hover:border-indigo-500 p-8 shadow-sm transition duration-200 flex flex-col justify-between"
+              className="bg-white rounded-xl border border-slate-200 hover:border-indigo-500 p-6 shadow-xs transition duration-150 flex flex-col justify-between"
             >
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-slate-900">{plan.name}</h3>
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-bold text-slate-900">{plan.name}</h3>
+                  <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                     {plan.durationDays} Ngày
                   </span>
                 </div>
 
-                <div className="mb-6">
-                  <span className="text-3xl font-extrabold text-slate-900">
+                <div className="mb-5">
+                  <span className="text-2xl sm:text-3xl font-bold text-slate-900">
                     {formatCurrency(plan.priceVnd)}
                   </span>
                   <span className="text-xs text-slate-500 block mt-0.5">
@@ -116,30 +116,30 @@ export default function SubscriptionPage() {
                   </span>
                 </div>
 
-                <ul className="space-y-3 text-sm text-slate-600 mb-8">
-                  <li className="flex items-center gap-2.5">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                      <Check className="w-3.5 h-3.5" />
+                <ul className="space-y-2.5 text-xs sm:text-sm text-slate-600 mb-6">
+                  <li className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3" />
                     </div>
                     <span>Không giới hạn bài thi Retest & Placement Test</span>
                   </li>
-                  <li className="flex items-center gap-2.5">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                      <Check className="w-3.5 h-3.5" />
+                  <li className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3" />
                     </div>
-                    <span>Toàn bộ ngân hàng câu hỏi phân cấp độ khó (1 - 5)</span>
+                    <span>Toàn bộ lộ trình học thích ứng & bài kiểm tra chuyên sâu</span>
                   </li>
-                  <li className="flex items-center gap-2.5">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                      <Check className="w-3.5 h-3.5" />
+                  <li className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3" />
                     </div>
-                    <span>Tự động tạo bài tập bổ trợ thích ứng (Remedial)</span>
+                    <span>Tự động kích hoạt bài tập ôn luyện bổ trợ (Remedial)</span>
                   </li>
-                  <li className="flex items-center gap-2.5">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                      <Check className="w-3.5 h-3.5" />
+                  <li className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3" />
                     </div>
-                    <span>Hỗ trợ phân tích tiến độ học tập chi tiết theo từng kỹ năng</span>
+                    <span>Phân tích năng lực chuyên sâu (Skill Profile)</span>
                   </li>
                 </ul>
               </div>
@@ -147,7 +147,7 @@ export default function SubscriptionPage() {
               <button
                 onClick={() => handleSubscribe(plan.code)}
                 disabled={subscribing === plan.code}
-                className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-md shadow-indigo-200 transition cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-xs transition cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {subscribing === plan.code ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

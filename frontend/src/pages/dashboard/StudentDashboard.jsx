@@ -117,11 +117,11 @@ export default function StudentDashboard() {
   const activeSubject = SUBJECTS_CAROUSEL[currentSlide];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white p-8 sm:p-10 shadow-xl shadow-indigo-200">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-7 border border-slate-800 shadow-sm">
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-indigo-100 mb-3">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-indigo-200 mb-3">
             <GraduationCap className="w-3.5 h-3.5" />
             <span>
               {profile?.grade
@@ -130,17 +130,17 @@ export default function StudentDashboard() {
             </span>
           </div>
 
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Xin chào, {profile?.fullName || user?.fullName || user?.username}! 👋
           </h1>
-          <p className="mt-2 text-indigo-100 text-sm sm:text-base leading-relaxed">
+          <p className="mt-2 text-slate-300 text-xs sm:text-sm leading-relaxed">
             Hệ thống học tập thích ứng (Adaptive Learning) đang theo dõi và tối ưu hóa lộ trình học riêng biệt cho bạn dựa trên năng lực thực tế.
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="mt-5 flex flex-wrap items-center gap-3">
             <Link
               to="/subjects"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-sm transition"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-white font-semibold text-xs sm:text-sm transition"
             >
               <BookOpen className="w-4 h-4" />
               <span>Danh mục Môn học</span>
@@ -149,25 +149,25 @@ export default function StudentDashboard() {
             {!isPro && (
               <Link
                 to="/subscription"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm transition shadow-sm"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs sm:text-sm transition shadow-xs"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>Nâng cấp Pro mở rộng kho bài tập</span>
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>Nâng cấp Pro mở rộng bài kiểm tra</span>
               </Link>
             )}
           </div>
         </div>
 
         {/* Decorative background glow */}
-        <div className="absolute -right-12 -bottom-12 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -right-12 -bottom-12 w-72 h-72 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
       </div>
 
       {/* CASE 1: STUDENT HAS ENROLLED STUDY PATHS */}
       {enrolledSubjects.length > 0 ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-indigo-600" />
               <span>Môn học đang có lộ trình của bạn</span>
             </h2>
             <button
@@ -178,44 +178,44 @@ export default function StudentDashboard() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {enrolledSubjects.map((sub) => {
               const pct = sub.progressPercentage || 0;
               return (
                 <div
                   key={sub.subjectId}
-                  className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs hover:shadow-md transition space-y-5"
+                  className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs hover:border-slate-300 transition space-y-4"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                        <BookOpen className="w-6 h-6" />
+                      <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                        <BookOpen className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-xl font-black text-slate-900">{sub.subjectName}</h3>
+                        <h3 className="text-base font-bold text-slate-900">{sub.subjectName}</h3>
                         <span className="text-xs text-slate-500">
                           {sub.completedSkills || 0} / {sub.totalSkills || 6} Kỹ năng hoàn thành
                         </span>
                       </div>
                     </div>
 
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                       {pct}% Hoàn thành
                     </span>
                   </div>
 
                   {/* Progress bar */}
-                  <div className="space-y-1.5">
-                    <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="space-y-1">
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full transition-all duration-500"
+                        className="h-full bg-indigo-600 rounded-full transition-all duration-500"
                         style={{ width: `${pct}%` }}
                       ></div>
                     </div>
                   </div>
 
                   {/* Current Active Skill */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
                     <span className="text-slate-500 font-medium">Kỹ năng hiện tại:</span>
                     <strong className="text-indigo-900 font-bold max-w-[200px] truncate text-right">
                       {sub.currentSkillName || 'Kỹ năng mục tiêu'}
@@ -225,10 +225,10 @@ export default function StudentDashboard() {
                   {/* Action CTA: Tiếp tục học */}
                   <Link
                     to={`/study-path/${sub.subjectCode || 'english'}`}
-                    className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm text-center shadow-md shadow-indigo-100 transition flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs text-center shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Tiếp tục học</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
               );
@@ -237,53 +237,53 @@ export default function StudentDashboard() {
         </div>
       ) : (
         /* CASE 2: STUDENT HAS NO ENROLLED SUBJECTS -> SLIDESHOW WIDGET */
-        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-          <div className="p-6 sm:p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="space-y-4 max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-bold">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="p-6 sm:p-7 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-3 max-w-xl">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-semibold">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Khởi tạo Lộ Trình Thích Ứng Cá Nhân</span>
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug">
                 Bạn chưa tham gia lộ trình học nào
               </h2>
 
-              <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+              <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
                 Hệ thống tự động thiết kế lộ trình học riêng biệt dựa trên bài kiểm tra khảo sát năng lực (Placement Test). Các câu hỏi được chọn ngẫu nhiên để xác định chính xác điểm mạnh và điểm yếu của bạn!
               </p>
 
               <button
                 onClick={() => setShowSubjectPickerModal(true)}
-                className="inline-flex items-center gap-3 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-base shadow-xl shadow-indigo-200 transition duration-200 cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-xs transition cursor-pointer"
               >
-                <Sparkles className="w-5 h-5" />
+                <Sparkles className="w-4 h-4" />
                 <span>Tạo Lộ Trình Học</span>
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
 
             {/* Slideshow Display Card */}
-            <div className="w-full md:w-80 shrink-0">
+            <div className="w-full md:w-72 shrink-0">
               <div
-                className={`rounded-3xl p-6 text-white shadow-xl transition-all duration-500 bg-gradient-to-br ${activeSubject.color} space-y-4`}
+                className={`rounded-xl p-5 text-white shadow-sm transition-all duration-500 bg-gradient-to-br ${activeSubject.color} space-y-3`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-white/20 backdrop-blur-md">
                     Khối THPT
                   </span>
-                  <span className="text-xs text-white/80">
+                  <span className="text-[11px] text-white/80">
                     {currentSlide + 1} / {SUBJECTS_CAROUSEL.length}
                   </span>
                 </div>
 
-                <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 rounded-lg bg-white/15 backdrop-blur-md flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-white" />
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-extrabold">{activeSubject.name}</h3>
-                  <p className="text-xs text-white/85 mt-1 line-clamp-3 leading-relaxed">
+                  <h3 className="text-base font-bold">{activeSubject.name}</h3>
+                  <p className="text-xs text-white/85 mt-1 line-clamp-2 leading-relaxed">
                     {activeSubject.desc}
                   </p>
                 </div>
@@ -294,8 +294,8 @@ export default function StudentDashboard() {
                       <button
                         key={dotIdx}
                         onClick={() => setCurrentSlide(dotIdx)}
-                        className={`h-2 rounded-full transition-all ${
-                          dotIdx === currentSlide ? 'w-6 bg-white' : 'w-2 bg-white/40'
+                        className={`h-1.5 rounded-full transition-all ${
+                          dotIdx === currentSlide ? 'w-5 bg-white' : 'w-1.5 bg-white/40'
                         }`}
                       />
                     ))}
@@ -303,10 +303,10 @@ export default function StudentDashboard() {
 
                   <button
                     onClick={() => setShowSubjectPickerModal(true)}
-                    className="px-3 py-1.5 rounded-xl bg-white text-slate-900 font-bold text-xs shadow-sm hover:bg-slate-100 transition flex items-center gap-1 cursor-pointer"
+                    className="px-2.5 py-1 rounded-md bg-white text-slate-900 font-semibold text-xs shadow-xs hover:bg-slate-100 transition flex items-center gap-1 cursor-pointer"
                   >
                     <span>Khảo sát</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -316,102 +316,102 @@ export default function StudentDashboard() {
       )}
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-            <Compass className="w-6 h-6" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <Compass className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-slate-800">
+            <div className="text-xl font-bold text-slate-800 leading-tight">
               {enrolledSubjects.length > 0 ? `${enrolledSubjects.length} Môn` : 'Khởi tạo'}
             </div>
-            <div className="text-xs text-slate-500 font-medium">Lộ trình học thích ứng</div>
+            <div className="text-[11px] text-slate-500 font-medium">Lộ trình học thích ứng</div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-            <CheckCircle className="w-6 h-6" />
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <CheckCircle className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-slate-800">
+            <div className="text-xl font-bold text-slate-800 leading-tight">
               {enrolledSubjects.reduce((sum, s) => sum + (s.completedSkills || 0), 0)} / 6
             </div>
-            <div className="text-xs text-slate-500 font-medium">Kỹ năng hoàn thành</div>
+            <div className="text-[11px] text-slate-500 font-medium">Kỹ năng hoàn thành</div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-            <BarChart3 className="w-6 h-6" />
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+            <BarChart3 className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-slate-800">
+            <div className="text-xl font-bold text-slate-800 leading-tight">
               {enrolledSubjects.length > 0 ? `${enrolledSubjects[0].progressPercentage || 0}%` : '-- %'}
             </div>
-            <div className="text-xs text-slate-500 font-medium">Tiến độ tổng quan</div>
+            <div className="text-[11px] text-slate-500 font-medium">Tiến độ tổng quan</div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-            <Award className="w-6 h-6" />
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+            <Award className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-slate-800">
-              {isPro ? 'Pro Active' : 'Gói Cơ Bản'}
+            <div className="text-xl font-bold text-slate-800 leading-tight">
+              {isPro ? 'Pro Student' : 'Gói Cơ Bản'}
             </div>
-            <div className="text-xs text-slate-500 font-medium">Hạng thành viên</div>
+            <div className="text-[11px] text-slate-500 font-medium">Hạng tài khoản</div>
           </div>
         </div>
       </div>
 
       {/* Adaptive Roadmap Architecture Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-          <div className="flex items-center justify-between mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-lg font-bold text-slate-900">Quy trình học tập thích ứng</h2>
+              <BookOpen className="w-4 h-4 text-indigo-600" />
+              <h2 className="text-base font-bold text-slate-900">Quy trình học tập thích ứng</h2>
             </div>
-            <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-indigo-50 text-indigo-700">
+            <span className="text-[11px] px-2 py-0.5 rounded font-medium bg-indigo-50 text-indigo-700">
               Rule-based System
             </span>
           </div>
 
-          <div className="space-y-4 text-sm text-slate-600">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+          <div className="space-y-3 text-xs sm:text-sm text-slate-600">
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-start gap-3">
+              <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">
                 1
               </div>
               <div>
-                <span className="font-semibold text-slate-800">Khảo sát năng lực ngẫu nhiên (Placement Test — Phase 5):</span>
+                <span className="font-semibold text-slate-800">Khảo sát năng lực ngẫu nhiên (Placement Test):</span>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Lấy ngẫu nhiên câu hỏi từ các kỹ năng, xáo trộn câu hỏi và đáp án để đánh giá khách quan độ chính xác từng kỹ năng.
                 </p>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-start gap-3">
+              <div className="w-5 h-5 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">
                 2
               </div>
               <div>
-                <span className="font-semibold text-slate-800">Lộ trình học cá nhân hóa thích ứng (Adaptive Learning — Phase 6):</span>
+                <span className="font-semibold text-slate-800">Lộ trình học cá nhân hóa thích ứng (Adaptive Learning):</span>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Tự động xếp các kỹ năng có độ chính xác dưới 60% lên đầu lộ trình. Kỹ năng tiếp theo bị khóa cho đến khi vượt qua bài kiểm tra kỹ năng.
                 </p>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-start gap-3">
+              <div className="w-5 h-5 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">
                 3
               </div>
               <div>
                 <span className="font-semibold text-slate-800">Bài kiểm tra kỹ năng (1 phút / câu):</span>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Kiểm tra đếm ngược thời gian (1 phút mỗi câu). Đạt từ 70% sẽ mở khóa kỹ năng tiếp theo và lưu lịch sử làm bài để đối chiếu.
+                  Kiểm tra đếm ngược thời gian (1 phút mỗi câu). Đạt từ 80% sẽ mở khóa kỹ năng tiếp theo và lưu lịch sử làm bài để đối chiếu.
                 </p>
               </div>
             </div>
@@ -419,27 +419,27 @@ export default function StudentDashboard() {
         </div>
 
         {/* Pro Account Status Card */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-5 h-5 text-amber-500" />
-              <h2 className="text-lg font-bold text-slate-900">Quyền lợi tài khoản Pro</h2>
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <h2 className="text-base font-bold text-slate-900">Quyền lợi tài khoản Pro</h2>
             </div>
-            <ul className="space-y-2.5 text-xs text-slate-600 mb-6">
+            <ul className="space-y-2 text-xs text-slate-600 mb-5">
               <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Không giới hạn số lần làm bài Retest</span>
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                <span>Mở khóa toàn bộ ngân hàng câu hỏi nâng cao</span>
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Kho bài kiểm tra chuyên sâu & nội dung nâng cao</span>
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Phân tích năng lực chuyên sâu (Skill Profile)</span>
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Nội dung bổ trợ (Remedial) được cá nhân hóa cao</span>
               </li>
             </ul>
@@ -447,7 +447,7 @@ export default function StudentDashboard() {
 
           <Link
             to="/subscription"
-            className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs text-center transition flex items-center justify-center gap-2"
+            className="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs text-center transition flex items-center justify-center gap-1.5"
           >
             <span>{isPro ? 'Quản lý gói Pro' : 'Xem các gói nâng cấp'}</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -457,53 +457,53 @@ export default function StudentDashboard() {
 
       {/* MODAL: SELECT SUBJECT FOR CREATING STUDY PATH */}
       {showSubjectPickerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 sm:p-8 space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-xl w-full p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Chọn môn học để tạo lộ trình</h3>
+                <h3 className="text-base font-bold text-slate-900">Chọn môn học để tạo lộ trình</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Hệ thống sẽ tạo bài khảo sát năng lực (Placement Test) trước khi tạo lộ trình học cá nhân.
                 </p>
               </div>
               <button
                 onClick={() => setShowSubjectPickerModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer"
+                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
               {SUBJECTS_CAROUSEL.map((sub) => (
                 <div
                   key={sub.code}
-                  className={`p-4 rounded-2xl border transition flex items-center justify-between gap-4 ${
+                  className={`p-3 rounded-lg border transition flex items-center justify-between gap-3 ${
                     sub.ready
                       ? 'border-indigo-200 bg-indigo-50/40 hover:bg-indigo-50'
                       : 'border-slate-200 bg-slate-50/60 opacity-70'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white bg-gradient-to-br ${sub.color}`}
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-white bg-gradient-to-br ${sub.color}`}
                     >
-                      <BookOpen className="w-5 h-5" />
+                      <BookOpen className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-slate-900 text-sm">{sub.name}</h4>
+                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm">{sub.name}</h4>
                         {sub.ready ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
                             Sẵn sàng khảo sát
                           </span>
                         ) : (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
                             Sắp ra mắt
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{sub.desc}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{sub.desc}</p>
                     </div>
                   </div>
 
@@ -513,14 +513,14 @@ export default function StudentDashboard() {
                         setShowSubjectPickerModal(false);
                         navigate('/assessment/placement');
                       }}
-                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition cursor-pointer shrink-0 shadow-sm"
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition cursor-pointer shrink-0 shadow-xs"
                     >
                       Bắt đầu khảo sát
                     </button>
                   ) : (
                     <button
                       disabled
-                      className="px-3 py-2 rounded-xl bg-slate-200 text-slate-400 font-semibold text-xs cursor-not-allowed shrink-0"
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-200 text-slate-400 font-semibold text-xs cursor-not-allowed shrink-0"
                     >
                       Chưa mở
                     </button>
@@ -532,7 +532,7 @@ export default function StudentDashboard() {
             <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setShowSubjectPickerModal(false)}
-                className="px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition cursor-pointer"
+                className="px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition cursor-pointer"
               >
                 Đóng
               </button>
