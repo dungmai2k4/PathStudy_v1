@@ -200,7 +200,7 @@ public class AssessmentService {
                 .type("SKILL_TEST")
                 .timeLimitMinutes(timeLimit)
                 .totalQuestions(chosen.size())
-                .passingScorePercentage(70)
+                .passingScorePercentage(80)
                 .build();
         assessment = assessmentRepository.save(assessment);
 
@@ -318,7 +318,7 @@ public class AssessmentService {
                 .type("TOPIC_TEST")
                 .timeLimitMinutes(timeLimit)
                 .totalQuestions(chosen.size())
-                .passingScorePercentage(70)
+                .passingScorePercentage(80)
                 .build();
         assessment = assessmentRepository.save(assessment);
 
@@ -440,7 +440,7 @@ public class AssessmentService {
                 .type("COURSE_FINAL_TEST")
                 .timeLimitMinutes(timeLimit)
                 .totalQuestions(chosen.size())
-                .passingScorePercentage(70)
+                .passingScorePercentage(80)
                 .build();
         assessment = assessmentRepository.save(assessment);
 
@@ -588,7 +588,7 @@ public class AssessmentService {
 
         int totalQ = questions.size();
         int accuracy = totalQ > 0 ? Math.round((float) totalScore * 100 / totalQ) : 0;
-        int passing = assessment.getPassingScorePercentage() != null ? assessment.getPassingScorePercentage() : 70;
+        int passing = assessment.getPassingScorePercentage() != null ? assessment.getPassingScorePercentage() : 80;
         boolean passed = accuracy >= passing;
 
         attempt.setSubmittedAt(Instant.now());
@@ -724,7 +724,9 @@ public class AssessmentService {
                 .totalQuestions(a.getTotalQuestions())
                 .accuracyPercentage(a.getAccuracyPercentage())
                 .isPassed(a.getIsPassed())
-                .submittedAt(a.getSubmittedAt())
+                .startedAt(a.getStartedAt())
+                .submittedAt(a.getSubmittedAt() != null ? a.getSubmittedAt() : a.getCreatedAt())
+                .createdAt(a.getCreatedAt())
                 .build()).collect(Collectors.toList());
     }
 
@@ -744,7 +746,8 @@ public class AssessmentService {
                 .accuracyPercentage(a.getAccuracyPercentage())
                 .isPassed(a.getIsPassed())
                 .startedAt(a.getStartedAt())
-                .submittedAt(a.getSubmittedAt())
+                .submittedAt(a.getSubmittedAt() != null ? a.getSubmittedAt() : a.getCreatedAt())
+                .createdAt(a.getCreatedAt())
                 .build()).collect(Collectors.toList());
     }
 
@@ -768,7 +771,8 @@ public class AssessmentService {
                 .accuracyPercentage(a.getAccuracyPercentage())
                 .isPassed(a.getIsPassed())
                 .startedAt(a.getStartedAt())
-                .submittedAt(a.getSubmittedAt())
+                .submittedAt(a.getSubmittedAt() != null ? a.getSubmittedAt() : a.getCreatedAt())
+                .createdAt(a.getCreatedAt())
                 .build()).collect(Collectors.toList());
     }
 
@@ -786,7 +790,8 @@ public class AssessmentService {
                 .accuracyPercentage(a.getAccuracyPercentage())
                 .isPassed(a.getIsPassed())
                 .startedAt(a.getStartedAt())
-                .submittedAt(a.getSubmittedAt())
+                .submittedAt(a.getSubmittedAt() != null ? a.getSubmittedAt() : a.getCreatedAt())
+                .createdAt(a.getCreatedAt())
                 .build()).collect(Collectors.toList());
     }
 

@@ -462,7 +462,7 @@ public class AdaptiveLearningService {
 
         node.setStatus("NEEDS_REMEDIATION");
         node.setHasRemedialActive(true);
-        node.setRemedialReason("Điểm kiểm tra chủ đề đạt " + request.getScorePercentage() + "% (< 70%). Hệ thống đã tự động bổ sung bài học ôn tập chuyên sâu để củng cố kiến thức trước khi thi lại!");
+        node.setRemedialReason("Điểm kiểm tra chủ đề đạt " + request.getScorePercentage() + "% (< 80%). Hệ thống đã tự động bổ sung bài học ôn tập chuyên sâu để củng cố kiến thức trước khi thi lại!");
         studyPathSkillNodeRepository.save(node);
 
         return getMyStudyPath(request.getStudentId(), request.getSubjectId());

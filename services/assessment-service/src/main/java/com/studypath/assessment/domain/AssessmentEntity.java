@@ -43,5 +43,5 @@ public class AssessmentEntity extends BaseEntity {
 
     @Column(name = "passing_score_percentage")
     @Builder.Default
-    private Integer passingScorePercentage = 70;
+    private Integer passingScorePercentage = 80;
 }

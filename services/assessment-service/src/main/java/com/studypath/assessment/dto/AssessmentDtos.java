@@ -185,5 +185,6 @@ public class AssessmentDtos {
         private Boolean isPassed;
         private Instant startedAt;
         private Instant submittedAt;
+        private Instant createdAt;
     }
 }
