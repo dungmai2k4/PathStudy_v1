@@ -37,6 +37,27 @@ public class QuestionDataSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        // Backfill topicId and moduleId for existing questions
+        List<QuestionEntity> existingQuestions = questionRepository.findAll();
+        boolean needUpdate = false;
+        for (QuestionEntity q : existingQuestions) {
+            if (q.getTopicId() == null && q.getSkillId() != null) {
+                q.setTopicId(q.getSkillId());
+                boolean isGrammar = q.getSkillId().toString().endsWith("01") ||
+                                    q.getSkillId().toString().endsWith("02") ||
+                                    q.getSkillId().toString().endsWith("03") ||
+                                    q.getSkillId().toString().endsWith("04");
+                q.setModuleId(isGrammar
+                        ? UUID.fromString("22222222-2222-2222-2222-222222222210")
+                        : UUID.fromString("22222222-2222-2222-2222-222222222220"));
+                needUpdate = true;
+            }
+        }
+        if (needUpdate) {
+            questionRepository.saveAll(existingQuestions);
+            log.info("Backfilled topicId and moduleId for {} existing questions.", existingQuestions.size());
+        }
+
         if (questionBankRepository.count() > 0) {
             log.info("Question bank data already seeded. Skipping question seeding.");
             return;

@@ -17,13 +17,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class QuestionService {
 
     private final QuestionBankRepository questionBankRepository;
     private final QuestionRepository questionRepository;
     private final QuestionOptionRepository questionOptionRepository;
 
+    @Transactional(readOnly = true)
     public List<QuestionBankDto> getQuestionBanks(UUID subjectId) {
         List<QuestionBankEntity> banks = (subjectId != null)
                 ? questionBankRepository.findBySubjectId(subjectId)
@@ -34,13 +34,59 @@ public class QuestionService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public QuestionBankDto getQuestionBankById(UUID id) {
         return questionBankRepository.findById(id)
                 .map(this::toQuestionBankDto)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ngân hàng câu hỏi ID: " + id));
     }
 
+    @Transactional
+    public QuestionBankDto createQuestionBank(CreateQuestionBankRequest request) {
+        QuestionBankEntity entity = QuestionBankEntity.builder()
+                .subjectId(request.getSubjectId())
+                .name(request.getName())
+                .description(request.getDescription())
+                .status("ACTIVE")
+                .build();
+        entity = questionBankRepository.save(entity);
+        return toQuestionBankDto(entity);
+    }
+
+    @Transactional
+    public QuestionBankDto updateQuestionBank(UUID id, UpdateQuestionBankRequest request) {
+        QuestionBankEntity entity = questionBankRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ngân hàng câu hỏi ID: " + id));
+        entity.setName(request.getName());
+        if (request.getDescription() != null) entity.setDescription(request.getDescription());
+        if (request.getStatus() != null) entity.setStatus(request.getStatus());
+        entity = questionBankRepository.save(entity);
+        return toQuestionBankDto(entity);
+    }
+
+    @Transactional
+    public void deleteQuestionBank(UUID id) {
+        List<QuestionEntity> questions = questionRepository.findByQuestionBankId(id);
+        for (QuestionEntity q : questions) {
+            questionOptionRepository.deleteByQuestionId(q.getId());
+            questionRepository.delete(q);
+        }
+        questionBankRepository.deleteById(id);
+    }
+
+    // --- Student Public Question Endpoints (Hidden isCorrect) ---
+
+    @Transactional(readOnly = true)
     public List<QuestionDto> getQuestions(UUID questionBankId, UUID skillId, String difficulty) {
+        return fetchQuestions(questionBankId, skillId, difficulty, false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuestionDto> getQuestionsForManager(UUID questionBankId, UUID skillId, String difficulty) {
+        return fetchQuestions(questionBankId, skillId, difficulty, true);
+    }
+
+    private List<QuestionDto> fetchQuestions(UUID questionBankId, UUID skillId, String difficulty, boolean includeAnswer) {
         List<QuestionEntity> questions;
 
         if (skillId != null && difficulty != null && !difficulty.isBlank()) {
@@ -54,35 +100,107 @@ public class QuestionService {
         }
 
         return questions.stream()
-                .map(this::toQuestionDto)
+                .map(q -> toQuestionDto(q, includeAnswer))
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<QuestionDto> getQuestionsByTopicId(UUID topicId) {
         List<QuestionEntity> questions = questionRepository.findByTopicId(topicId);
         if (questions.isEmpty()) {
-            // Fallback to skillId if topicId matches skillId
             questions = questionRepository.findBySkillId(topicId);
         }
         return questions.stream()
-                .map(this::toQuestionDto)
+                .map(q -> toQuestionDto(q, false))
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<QuestionDto> getQuestionsBySubjectId(UUID subjectId) {
         List<QuestionBankEntity> banks = questionBankRepository.findBySubjectId(subjectId);
         return banks.stream()
                 .flatMap(b -> questionRepository.findByQuestionBankId(b.getId()).stream())
-                .map(this::toQuestionDto)
+                .map(q -> toQuestionDto(q, false))
                 .collect(Collectors.toList());
     }
 
-    public QuestionDto getQuestionById(UUID id) {
+    @Transactional(readOnly = true)
+    public QuestionDto getQuestionById(UUID id, boolean includeAnswer) {
         return questionRepository.findById(id)
-                .map(this::toQuestionDto)
+                .map(q -> toQuestionDto(q, includeAnswer))
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy câu hỏi ID: " + id));
     }
 
+    @Transactional
+    public QuestionDto createQuestion(CreateQuestionRequest request) {
+        QuestionEntity question = QuestionEntity.builder()
+                .questionBankId(request.getQuestionBankId())
+                .skillId(request.getSkillId())
+                .moduleId(request.getModuleId())
+                .topicId(request.getTopicId())
+                .content(request.getContent())
+                .difficulty(request.getDifficulty().toUpperCase())
+                .explanation(request.getExplanation())
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .status("ACTIVE")
+                .build();
+        question = questionRepository.save(question);
+
+        if (request.getOptions() != null) {
+            int order = 1;
+            for (CreateQuestionRequest.QuestionOptionInput optInput : request.getOptions()) {
+                QuestionOptionEntity opt = QuestionOptionEntity.builder()
+                        .questionId(question.getId())
+                        .optionContent(optInput.getOptionContent())
+                        .isCorrect(Boolean.TRUE.equals(optInput.getIsCorrect()))
+                        .displayOrder(optInput.getDisplayOrder() != null ? optInput.getDisplayOrder() : order++)
+                        .build();
+                questionOptionRepository.save(opt);
+            }
+        }
+
+        return toQuestionDto(question, true);
+    }
+
+    @Transactional
+    public QuestionDto updateQuestion(UUID id, UpdateQuestionRequest request) {
+        QuestionEntity question = questionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy câu hỏi ID: " + id));
+
+        question.setContent(request.getContent());
+        if (request.getSkillId() != null) question.setSkillId(request.getSkillId());
+        if (request.getModuleId() != null) question.setModuleId(request.getModuleId());
+        if (request.getTopicId() != null) question.setTopicId(request.getTopicId());
+        if (request.getDifficulty() != null) question.setDifficulty(request.getDifficulty().toUpperCase());
+        if (request.getExplanation() != null) question.setExplanation(request.getExplanation());
+        if (request.getStatus() != null) question.setStatus(request.getStatus());
+        if (request.getDisplayOrder() != null) question.setDisplayOrder(request.getDisplayOrder());
+        question = questionRepository.save(question);
+
+        if (request.getOptions() != null && !request.getOptions().isEmpty()) {
+            questionOptionRepository.deleteByQuestionId(question.getId());
+            int order = 1;
+            for (CreateQuestionRequest.QuestionOptionInput optInput : request.getOptions()) {
+                QuestionOptionEntity opt = QuestionOptionEntity.builder()
+                        .questionId(question.getId())
+                        .optionContent(optInput.getOptionContent())
+                        .isCorrect(Boolean.TRUE.equals(optInput.getIsCorrect()))
+                        .displayOrder(optInput.getDisplayOrder() != null ? optInput.getDisplayOrder() : order++)
+                        .build();
+                questionOptionRepository.save(opt);
+            }
+        }
+
+        return toQuestionDto(question, true);
+    }
+
+    @Transactional
+    public void deleteQuestion(UUID id) {
+        questionOptionRepository.deleteByQuestionId(id);
+        questionRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
     public CheckAnswerResponse checkAnswer(UUID questionId, UUID selectedOptionId) {
         QuestionEntity question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy câu hỏi ID: " + questionId));
@@ -112,9 +230,9 @@ public class QuestionService {
                 .build();
     }
 
-    private QuestionDto toQuestionDto(QuestionEntity entity) {
+    private QuestionDto toQuestionDto(QuestionEntity entity, boolean includeAnswer) {
         List<QuestionOptionDto> options = questionOptionRepository.findByQuestionIdOrderByDisplayOrderAsc(entity.getId()).stream()
-                .map(this::toQuestionOptionDto)
+                .map(opt -> toQuestionOptionDto(opt, includeAnswer))
                 .collect(Collectors.toList());
 
         return QuestionDto.builder()
@@ -125,19 +243,19 @@ public class QuestionService {
                 .skillId(entity.getSkillId())
                 .content(entity.getContent())
                 .difficulty(entity.getDifficulty())
-                .explanation(entity.getExplanation())
+                .explanation(includeAnswer ? entity.getExplanation() : null)
                 .status(entity.getStatus())
                 .displayOrder(entity.getDisplayOrder())
                 .options(options)
                 .build();
     }
 
-    private QuestionOptionDto toQuestionOptionDto(QuestionOptionEntity entity) {
+    private QuestionOptionDto toQuestionOptionDto(QuestionOptionEntity entity, boolean includeAnswer) {
         return QuestionOptionDto.builder()
                 .id(entity.getId())
                 .questionId(entity.getQuestionId())
                 .optionContent(entity.getOptionContent())
-                .isCorrect(entity.getIsCorrect())
+                .isCorrect(includeAnswer ? entity.getIsCorrect() : null)
                 .displayOrder(entity.getDisplayOrder())
                 .build();
     }
