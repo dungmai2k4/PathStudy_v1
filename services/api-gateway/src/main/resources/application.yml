@@ -1,0 +1,71 @@
+server:
+  port: ${GATEWAY_PORT:8088}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+              - "http://localhost:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+      routes:
+        - id: auth-service-auth
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**
+        - id: auth-service-users
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/users/**
+        - id: content-service
+          uri: lb://content-service
+          predicates:
+            - Path=/api/v1/content/**
+        - id: question-service
+          uri: lb://question-service
+          predicates:
+            - Path=/api/v1/questions/**
+        - id: assessment-service
+          uri: lb://assessment-service
+          predicates:
+            - Path=/api/v1/assessments/**
+        - id: adaptive-service
+          uri: lb://adaptive-learning-service
+          predicates:
+            - Path=/api/v1/adaptive/**
+        - id: progress-service
+          uri: lb://progress-service
+          predicates:
+            - Path=/api/v1/progress/**
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    registerWithEureka: true
+    fetchRegistry: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
