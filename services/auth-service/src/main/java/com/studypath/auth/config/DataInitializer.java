@@ -1,15 +1,16 @@
 package com.studypath.auth.config;
 
-import com.studypath.auth.domain.RoleEntity;
-import com.studypath.auth.domain.SubscriptionPlanEntity;
-import com.studypath.auth.repository.RoleRepository;
-import com.studypath.auth.repository.SubscriptionPlanRepository;
+import com.studypath.auth.domain.*;
+import com.studypath.auth.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 
 @Configuration
@@ -19,11 +20,16 @@ public class DataInitializer implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
+    private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
+    private final StudentProfileRepository studentProfileRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
         initRoles();
         initSubscriptionPlans();
+        initDefaultAccounts();
     }
 
     private void initRoles() {
@@ -33,6 +39,64 @@ public class DataInitializer implements CommandLineRunner {
                 roleRepository.save(RoleEntity.builder().name(roleName).build());
                 log.info("Initialized default role: {}", roleName);
             }
+        }
+    }
+
+    private void initDefaultAccounts() {
+        // Seed default Admin
+        if (!accountRepository.existsByUsername("admin")) {
+            RoleEntity adminRole = roleRepository.findByName("ADMIN")
+                    .orElseGet(() -> roleRepository.save(RoleEntity.builder().name("ADMIN").build()));
+
+            UserEntity adminUser = UserEntity.builder()
+                    .roles(new HashSet<>(Collections.singletonList(adminRole)))
+                    .build();
+            adminUser = userRepository.save(adminUser);
+
+            AccountEntity adminAccount = AccountEntity.builder()
+                    .userId(adminUser.getId())
+                    .username("admin")
+                    .passwordHash(passwordEncoder.encode("Admin@123"))
+                    .status("ACTIVE")
+                    .build();
+            accountRepository.save(adminAccount);
+
+            StudentProfileEntity adminProfile = StudentProfileEntity.builder()
+                    .userId(adminUser.getId())
+                    .fullName("System Administrator")
+                    .grade(12)
+                    .className("ADMIN")
+                    .build();
+            studentProfileRepository.save(adminProfile);
+            log.info("Initialized default admin account: admin / Admin@123");
+        }
+
+        // Seed default Manager
+        if (!accountRepository.existsByUsername("manager")) {
+            RoleEntity managerRole = roleRepository.findByName("MANAGER")
+                    .orElseGet(() -> roleRepository.save(RoleEntity.builder().name("MANAGER").build()));
+
+            UserEntity managerUser = UserEntity.builder()
+                    .roles(new HashSet<>(Collections.singletonList(managerRole)))
+                    .build();
+            managerUser = userRepository.save(managerUser);
+
+            AccountEntity managerAccount = AccountEntity.builder()
+                    .userId(managerUser.getId())
+                    .username("manager")
+                    .passwordHash(passwordEncoder.encode("Manager@123"))
+                    .status("ACTIVE")
+                    .build();
+            accountRepository.save(managerAccount);
+
+            StudentProfileEntity managerProfile = StudentProfileEntity.builder()
+                    .userId(managerUser.getId())
+                    .fullName("Academic Content Manager")
+                    .grade(12)
+                    .className("MANAGER")
+                    .build();
+            studentProfileRepository.save(managerProfile);
+            log.info("Initialized default manager account: manager / Manager@123");
         }
     }
 
