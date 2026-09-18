@@ -45,6 +45,7 @@ public class StudentProfileService {
         return StudentProfileDto.builder()
                 .userId(userId)
                 .username(account.getUsername())
+                .fullName(profile != null ? profile.getFullName() : null)
                 .grade(profile != null ? profile.getGrade() : null)
                 .className(profile != null ? profile.getClassName() : null)
                 .roles(roles)
@@ -57,6 +58,9 @@ public class StudentProfileService {
         StudentProfileEntity profile = studentProfileRepository.findByUserId(userId)
                 .orElseGet(() -> StudentProfileEntity.builder().userId(userId).build());
 
+        if (request.getFullName() != null) {
+            profile.setFullName(request.getFullName());
+        }
         if (request.getGrade() != null) {
             profile.setGrade(request.getGrade());
         }

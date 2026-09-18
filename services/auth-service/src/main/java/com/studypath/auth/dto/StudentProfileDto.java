@@ -13,6 +13,7 @@ import java.util.UUID;
 public class StudentProfileDto {
     private UUID userId;
     private String username;
+    private String fullName;
     private Integer grade;
     private String className;
     private List<String> roles;

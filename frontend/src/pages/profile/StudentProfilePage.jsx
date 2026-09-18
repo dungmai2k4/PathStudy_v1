@@ -5,6 +5,7 @@ import { User, GraduationCap, CheckCircle2, AlertCircle, Save } from 'lucide-rea
 
 export default function StudentProfilePage() {
   const { user, isPro } = useAuth();
+  const [fullName, setFullName] = useState('');
   const [grade, setGrade] = useState('10');
   const [className, setClassName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,7 @@ export default function StudentProfilePage() {
       try {
         const data = await authService.getProfile();
         if (data) {
+          if (data.fullName) setFullName(data.fullName);
           if (data.grade) setGrade(data.grade.toString());
           if (data.className) setClassName(data.className);
         }
@@ -36,7 +38,7 @@ export default function StudentProfilePage() {
     setError('');
 
     try {
-      await authService.updateProfile(grade, className);
+      await authService.updateProfile({ fullName, grade, className });
       setMessage('Cập nhật hồ sơ học tập thành công!');
     } catch (err) {
       setError('Cập nhật thất bại. Vui lòng thử lại.');
@@ -100,6 +102,19 @@ export default function StudentProfilePage() {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+              Họ và tên học sinh
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Ví dụ: Nguyễn Văn An"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-sm"
+            />
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
@@ -121,17 +136,17 @@ export default function StudentProfilePage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                Tên Lớp (Class Name)
+                Lớp học (Không bắt buộc)
               </label>
               <input
                 type="text"
                 value={className}
                 onChange={(e) => setClassName(e.target.value)}
-                placeholder="Ví dụ: 10A1, 11 Chuyên Toán..."
+                placeholder="Ví dụ: 10A1"
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-sm"
               />
               <p className="text-xs text-slate-400 mt-1">
-                Thông tin lớp học hỗ trợ giáo viên và quản trị viên phân nhóm học tập.
+                (Tùy chọn) Để kết nối với lớp học tại trường nếu có.
               </p>
             </div>
           </div>

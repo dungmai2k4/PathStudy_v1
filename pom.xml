@@ -27,6 +27,10 @@
         <module>infrastructure/eureka-server</module>
         <module>services/api-gateway</module>
         <module>services/auth-service</module>
+        <module>services/content-service</module>
+        <module>services/question-service</module>
+        <module>services/assessment-service</module>
+        <module>services/adaptive-learning-service</module>
     </modules>
 
     <dependencyManagement>
@@ -92,6 +96,7 @@
                     <configuration>
                         <source>${java.version}</source>
                         <target>${java.version}</target>
+                        <parameters>true</parameters>
                         <annotationProcessorPaths>
                             <path>
                                 <groupId>org.projectlombok</groupId>

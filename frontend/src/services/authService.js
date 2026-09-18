@@ -12,13 +12,26 @@ export const authService = {
     return response.data;
   },
 
-  async register(username, password, grade, className) {
-    const response = await api.post('/api/v1/auth/register', {
-      username,
-      password,
-      grade: grade ? parseInt(grade, 10) : null,
-      className,
-    });
+  async register(usernameOrObj, password, grade, className, fullName) {
+    let payload;
+    if (typeof usernameOrObj === 'object' && usernameOrObj !== null) {
+      payload = {
+        username: usernameOrObj.username,
+        password: usernameOrObj.password,
+        fullName: usernameOrObj.fullName,
+        grade: usernameOrObj.grade ? parseInt(usernameOrObj.grade, 10) : null,
+        className: usernameOrObj.className,
+      };
+    } else {
+      payload = {
+        username: usernameOrObj,
+        password,
+        fullName: fullName || null,
+        grade: grade ? parseInt(grade, 10) : null,
+        className: className || null,
+      };
+    }
+    const response = await api.post('/api/v1/auth/register', payload);
     return response.data;
   },
 
@@ -32,11 +45,22 @@ export const authService = {
     return response.data.data;
   },
 
-  async updateProfile(grade, className) {
-    const response = await api.put('/api/v1/users/me/student-profile', {
-      grade: grade ? parseInt(grade, 10) : null,
-      className,
-    });
+  async updateProfile(gradeOrObj, className, fullName) {
+    let payload;
+    if (typeof gradeOrObj === 'object' && gradeOrObj !== null) {
+      payload = {
+        fullName: gradeOrObj.fullName,
+        grade: gradeOrObj.grade ? parseInt(gradeOrObj.grade, 10) : null,
+        className: gradeOrObj.className,
+      };
+    } else {
+      payload = {
+        grade: gradeOrObj ? parseInt(gradeOrObj, 10) : null,
+        className,
+        fullName,
+      };
+    }
+    const response = await api.put('/api/v1/users/me/student-profile', payload);
     return response.data.data;
   },
 

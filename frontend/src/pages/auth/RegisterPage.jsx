@@ -7,10 +7,10 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [grade, setGrade] = useState('10');
-  const [className, setClassName] = useState('10A1');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,12 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await register(username, password, grade, className);
+      await register({
+        fullName,
+        username,
+        password,
+        grade,
+      });
       setSuccess(true);
       setTimeout(() => {
         navigate('/login');
@@ -65,6 +70,20 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Họ và tên học sinh
+              </label>
+              <input
+                type="text"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Ví dụ: Nguyễn Văn An"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Tên đăng nhập
               </label>
               <input
@@ -72,7 +91,7 @@ export default function RegisterPage() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Ví dụ: hocsinh_nguyenan"
+                placeholder="Ví dụ: nguyenan10"
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-sm"
               />
             </div>
@@ -87,39 +106,24 @@ export default function RegisterPage() {
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu an toàn..."
+                placeholder="Nhập mật khẩu..."
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-sm"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Khối Lớp
-                </label>
-                <select
-                  value={grade}
-                  onChange={(e) => setGrade(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-sm bg-white"
-                >
-                  <option value="10">Lớp 10</option>
-                  <option value="11">Lớp 11</option>
-                  <option value="12">Lớp 12</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Lớp học
-                </label>
-                <input
-                  type="text"
-                  value={className}
-                  onChange={(e) => setClassName(e.target.value)}
-                  placeholder="Ví dụ: 10A1"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-sm"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Học sinh lớp mấy? (Khối lớp)
+              </label>
+              <select
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-sm bg-white"
+              >
+                <option value="10">Lớp 10 (Khối 10 THPT)</option>
+                <option value="11">Lớp 11 (Khối 11 THPT)</option>
+                <option value="12">Lớp 12 (Khối 12 THPT)</option>
+              </select>
             </div>
 
             <button

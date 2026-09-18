@@ -31,8 +31,8 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const register = async (username, password, grade, className) => {
-    return await authService.register(username, password, grade, className);
+  const register = async (...args) => {
+    return await authService.register(...args);
   };
 
   const logout = () => {

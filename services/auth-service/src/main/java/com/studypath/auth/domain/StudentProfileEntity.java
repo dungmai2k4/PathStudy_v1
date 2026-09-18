@@ -18,6 +18,9 @@ public class StudentProfileEntity extends BaseEntity {
     @Column(name = "user_id", nullable = false, unique = true)
     private UUID userId;
 
+    @Column(name = "full_name")
+    private String fullName;
+
     @Column(name = "grade")
     private Integer grade;
 

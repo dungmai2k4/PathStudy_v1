@@ -8,6 +8,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class UpdateStudentProfileRequest {
+    private String fullName;
     private Integer grade;
     private String className;
 }

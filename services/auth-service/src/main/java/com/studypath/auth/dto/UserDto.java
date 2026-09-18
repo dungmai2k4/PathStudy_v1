@@ -13,6 +13,8 @@ import java.util.UUID;
 public class UserDto {
     private UUID userId;
     private String username;
+    private String fullName;
+    private Integer grade;
     private List<String> roles;
     private boolean isPro;
 }

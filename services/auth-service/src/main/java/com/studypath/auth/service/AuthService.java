@@ -53,9 +53,10 @@ public class AuthService {
                 .build();
         accountRepository.save(account);
 
-        if (request.getGrade() != null || request.getClassName() != null) {
+        if (request.getFullName() != null || request.getGrade() != null || request.getClassName() != null) {
             StudentProfileEntity profile = StudentProfileEntity.builder()
                     .userId(user.getId())
+                    .fullName(request.getFullName())
                     .grade(request.getGrade())
                     .className(request.getClassName())
                     .build();
@@ -67,6 +68,8 @@ public class AuthService {
         return UserDto.builder()
                 .userId(user.getId())
                 .username(account.getUsername())
+                .fullName(request.getFullName())
+                .grade(request.getGrade())
                 .roles(roles)
                 .isPro(false)
                 .build();
@@ -94,9 +97,13 @@ public class AuthService {
 
         String token = jwtTokenProvider.generateToken(user.getId(), account.getUsername(), roles, isPro);
 
+        StudentProfileEntity profile = studentProfileRepository.findByUserId(user.getId()).orElse(null);
+
         UserDto userDto = UserDto.builder()
                 .userId(user.getId())
                 .username(account.getUsername())
+                .fullName(profile != null ? profile.getFullName() : null)
+                .grade(profile != null ? profile.getGrade() : null)
                 .roles(roles)
                 .isPro(isPro)
                 .build();
@@ -124,9 +131,13 @@ public class AuthService {
         List<String> roles = user.getRoles().stream().map(RoleEntity::getName).collect(Collectors.toList());
         boolean isPro = isUserPro(user.getId());
 
+        StudentProfileEntity profile = studentProfileRepository.findByUserId(user.getId()).orElse(null);
+
         return UserDto.builder()
                 .userId(user.getId())
                 .username(account.getUsername())
+                .fullName(profile != null ? profile.getFullName() : null)
+                .grade(profile != null ? profile.getGrade() : null)
                 .roles(roles)
                 .isPro(isPro)
                 .build();

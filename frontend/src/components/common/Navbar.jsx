@@ -27,6 +27,18 @@ export default function Navbar() {
                 Tổng quan
               </Link>
               <Link
+                to="/study-path/english"
+                className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-100 transition flex items-center gap-1.5"
+              >
+                <span>Lộ trình học</span>
+              </Link>
+              <Link
+                to="/subjects"
+                className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-100 transition flex items-center gap-1.5"
+              >
+                <span>Môn học</span>
+              </Link>
+              <Link
                 to="/profile"
                 className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-100 transition"
               >
