@@ -5,9 +5,9 @@ spring:
   application:
     name: payment-service
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/payment_db
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:123456}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/payment_db
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -21,7 +21,7 @@ spring:
 eureka:
   client:
     serviceUrl:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_SERVER_URL}
     registerWithEureka: true
     fetchRegistry: true
   instance:
@@ -29,17 +29,17 @@ eureka:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
-    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION_MS}
 
 vietqr:
-  bank-id: ${VIETQR_BANK_ID:TCB}
-  account-no: ${VIETQR_ACCOUNT_NO:19070027277011}
-  account-name: ${VIETQR_ACCOUNT_NAME:MAI TIEN DUNG}
-  template: ${VIETQR_TEMPLATE:compact2}
+  bank-id: ${VIETQR_BANK_ID}
+  account-no: ${VIETQR_ACCOUNT_NO}
+  account-name: ${VIETQR_ACCOUNT_NAME}
+  template: ${VIETQR_TEMPLATE}
 
 payment:
   webhook:
-    secure-token: ${PAYMENT_WEBHOOK_TOKEN:study_path_secure_webhook_token_2026}
+    secure-token: ${PAYMENT_WEBHOOK_TOKEN}
   services:
-    auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8081}
+    auth-service-url: ${AUTH_SERVICE_URL}
