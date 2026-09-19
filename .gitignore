@@ -33,5 +33,13 @@ pnpm-debug.log*
 Thumbs.db
 *.log
 
+# Environment & Secret files
+.env
+.env.*
+!.env.example
+
+# Documentation (local only)
+docs/
+
 # Docker / Temporary
 scratch/
