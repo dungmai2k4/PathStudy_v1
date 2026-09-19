@@ -33,6 +33,9 @@ public class QuestionEntity {
     @Column(name = "skill_id", nullable = false)
     private UUID skillId;
 
+    @Column(name = "lesson_id")
+    private UUID lessonId;
+
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 

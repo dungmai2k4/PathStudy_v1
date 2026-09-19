@@ -42,6 +42,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/v1/auth/**",
                                 "/api/v1/users/subscription/plans",
+                                "/api/v1/users/internal/**",
                                 "/actuator/**",
                                 "/error"
                         ).permitAll()

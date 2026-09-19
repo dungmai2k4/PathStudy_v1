@@ -36,6 +36,9 @@ public class AssessmentService {
     @Value("${app.services.question-url:http://localhost:8083}")
     private String questionServiceUrl;
 
+    @Value("${app.services.content-url:http://localhost:8082}")
+    private String contentServiceUrl;
+
     // Fixed UUIDs for English Skills
     private static final Map<UUID, String> ENGLISH_SKILLS = new LinkedHashMap<>();
     static {
@@ -322,6 +325,8 @@ public class AssessmentService {
                 .build();
         assessment = assessmentRepository.save(assessment);
 
+        List<Map<String, Object>> topicLessons = fetchLessonsForTopic(request.getTopicId());
+
         List<AssessmentQuestionDto> dtoList = new ArrayList<>();
         int order = 1;
 
@@ -331,6 +336,50 @@ public class AssessmentService {
             String content = (String) q.get("content");
             String difficulty = (String) q.getOrDefault("difficulty", "MEDIUM");
             String explanation = (String) q.getOrDefault("explanation", "");
+
+            UUID lessonId = null;
+            String lessonTitle = null;
+            if (q.get("lessonId") != null) {
+                try {
+                    lessonId = UUID.fromString(q.get("lessonId").toString());
+                } catch (Exception ignored) {}
+            }
+            if (lessonId != null && !topicLessons.isEmpty()) {
+                for (Map<String, Object> l : topicLessons) {
+                    if (lessonId.toString().equals(String.valueOf(l.get("id")))) {
+                        lessonTitle = (String) l.get("title");
+                        break;
+                    }
+                }
+            }
+            if ((lessonId == null || lessonTitle == null) && !topicLessons.isEmpty()) {
+                String text = ((content != null ? content : "") + " " + (explanation != null ? explanation : "")).toLowerCase();
+                for (Map<String, Object> l : topicLessons) {
+                    String lt = (String) l.get("title");
+                    if (lt == null) continue;
+                    String ltl = lt.toLowerCase();
+                    if ((ltl.contains("present perfect") && (text.contains("present perfect") || text.contains("hiện tại hoàn thành")))
+                            || (ltl.contains("past perfect") && (text.contains("past perfect") || text.contains("quá khứ hoàn thành")))
+                            || (ltl.contains("past simple") && (text.contains("past simple") || text.contains("quá khứ đơn")))
+                            || (ltl.contains("present simple") && (text.contains("present simple") || text.contains("hiện tại đơn")))
+                            || (ltl.contains("tiếp diễn") && text.contains("tiếp diễn"))
+                            || (ltl.contains("loại 0") && text.contains("loại 0"))
+                            || (ltl.contains("loại 1") && text.contains("loại 1"))
+                            || (ltl.contains("loại 2") && text.contains("loại 2"))
+                            || (ltl.contains("collocation") && text.contains("collocation"))
+                            || (ltl.contains("cấu tạo từ") && text.contains("cấu tạo từ"))
+                            || (ltl.contains("phrasal") && text.contains("phrasal"))) {
+                        lessonId = UUID.fromString((String) l.get("id"));
+                        lessonTitle = lt;
+                        break;
+                    }
+                }
+                if (lessonId == null && !topicLessons.isEmpty()) {
+                    Map<String, Object> fallback = topicLessons.get((order - 1) % topicLessons.size());
+                    lessonId = UUID.fromString((String) fallback.get("id"));
+                    lessonTitle = (String) fallback.get("title");
+                }
+            }
 
             List<Map<String, Object>> rawOptions = (List<Map<String, Object>>) q.get("options");
             UUID correctOptId = null;
@@ -365,6 +414,8 @@ public class AssessmentService {
                     .questionId(qId)
                     .skillId(tId)
                     .skillName(topicName)
+                    .lessonId(lessonId)
+                    .lessonTitle(lessonTitle)
                     .content(content)
                     .difficulty(difficulty)
                     .optionsJson(optionsJson)
@@ -380,6 +431,8 @@ public class AssessmentService {
                     .topicId(tId)
                     .skillId(tId)
                     .skillName(topicName)
+                    .lessonId(lessonId)
+                    .lessonTitle(lessonTitle)
                     .content(content)
                     .difficulty(difficulty)
                     .displayOrder(order)
@@ -554,6 +607,9 @@ public class AssessmentService {
         int totalScore = 0;
         Map<UUID, List<Boolean>> skillAccuracyMap = new HashMap<>();
         Map<UUID, String> skillNames = new HashMap<>();
+        Map<UUID, String> weakLessonTitlesMap = new LinkedHashMap<>();
+        Map<UUID, Integer> weakLessonWrongCount = new LinkedHashMap<>();
+        Map<UUID, Integer> lessonTotalCount = new LinkedHashMap<>();
         List<AnswerDetailDto> details = new ArrayList<>();
 
         for (AssessmentQuestionEntity q : questions) {
@@ -561,6 +617,16 @@ public class AssessmentService {
             boolean isCorrect = selectedOpt != null && selectedOpt.equals(q.getCorrectOptionId());
 
             if (isCorrect) totalScore++;
+
+            UUID lId = q.getLessonId();
+            String lTitle = q.getLessonTitle() != null ? q.getLessonTitle() : (q.getSkillName() != null ? q.getSkillName() : "Bài học");
+            if (lId != null) {
+                lessonTotalCount.put(lId, lessonTotalCount.getOrDefault(lId, 0) + 1);
+                if (!isCorrect) {
+                    weakLessonWrongCount.put(lId, weakLessonWrongCount.getOrDefault(lId, 0) + 1);
+                    weakLessonTitlesMap.put(lId, lTitle);
+                }
+            }
 
             // Save individual answer
             AssessmentAnswerEntity answerEntity = AssessmentAnswerEntity.builder()
@@ -578,6 +644,8 @@ public class AssessmentService {
 
             details.add(AnswerDetailDto.builder()
                     .questionId(q.getQuestionId())
+                    .lessonId(lId)
+                    .lessonTitle(lTitle)
                     .content(q.getContent())
                     .selectedOptionId(selectedOpt)
                     .correctOptionId(q.getCorrectOptionId())
@@ -597,6 +665,18 @@ public class AssessmentService {
         attempt.setIsPassed(passed);
         attempt.setStatus("COMPLETED");
         assessmentAttemptRepository.save(attempt);
+
+        // Build weak lessons list
+        List<WeakLessonDto> weakLessons = new ArrayList<>();
+        for (Map.Entry<UUID, Integer> entry : weakLessonWrongCount.entrySet()) {
+            UUID lId = entry.getKey();
+            weakLessons.add(WeakLessonDto.builder()
+                    .lessonId(lId)
+                    .lessonTitle(weakLessonTitlesMap.get(lId))
+                    .wrongCount(entry.getValue())
+                    .totalQuestions(lessonTotalCount.getOrDefault(lId, 1))
+                    .build());
+        }
 
         // Build skill breakdown
         List<SkillResultDto> breakdown = new ArrayList<>();
@@ -653,6 +733,7 @@ public class AssessmentService {
                 .submittedAt(attempt.getSubmittedAt())
                 .skillBreakdown(breakdown)
                 .answerDetails(details)
+                .weakLessons(weakLessons)
                 .build();
     }
 
@@ -804,7 +885,7 @@ public class AssessmentService {
 
     private List<Map<String, Object>> fetchQuestionsForSkill(UUID skillId) {
         try {
-            String url = questionServiceUrl + "/api/v1/questions?skillId=" + skillId;
+            String url = questionServiceUrl + "/api/v1/questions?skillId=" + skillId + "&includeAnswer=true";
             ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
@@ -822,7 +903,7 @@ public class AssessmentService {
 
     private List<Map<String, Object>> fetchQuestionsForTopic(UUID topicId) {
         try {
-            String url = questionServiceUrl + "/api/v1/questions/by-topic/" + topicId;
+            String url = questionServiceUrl + "/api/v1/questions/by-topic/" + topicId + "?includeAnswer=true";
             ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
@@ -840,7 +921,7 @@ public class AssessmentService {
 
     private List<Map<String, Object>> fetchQuestionsForSubject(UUID subjectId) {
         try {
-            String url = questionServiceUrl + "/api/v1/questions/by-subject/" + subjectId;
+            String url = questionServiceUrl + "/api/v1/questions/by-subject/" + subjectId + "?includeAnswer=true";
             ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
@@ -852,6 +933,24 @@ public class AssessmentService {
             }
         } catch (Exception e) {
             log.warn("Error fetching questions for subject {}: {}", subjectId, e.getMessage());
+        }
+        return Collections.emptyList();
+    }
+
+    private List<Map<String, Object>> fetchLessonsForTopic(UUID topicId) {
+        try {
+            String url = contentServiceUrl + "/api/v1/content/topics/" + topicId + "/lessons";
+            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            if (resp.getBody() != null && resp.getBody().get("data") != null) {
+                return (List<Map<String, Object>>) resp.getBody().get("data");
+            }
+        } catch (Exception e) {
+            log.warn("Error fetching lessons for topic {}: {}", topicId, e.getMessage());
         }
         return Collections.emptyList();
     }

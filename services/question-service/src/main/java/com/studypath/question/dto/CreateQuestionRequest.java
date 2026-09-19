@@ -22,6 +22,7 @@ public class CreateQuestionRequest {
 
     private UUID moduleId;
     private UUID topicId;
+    private UUID lessonId;
 
     @NotBlank(message = "Content is required")
     private String content;

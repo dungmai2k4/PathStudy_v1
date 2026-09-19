@@ -27,6 +27,12 @@ public class AssessmentQuestionEntity extends BaseEntity {
     @Column(name = "skill_name")
     private String skillName;
 
+    @Column(name = "lesson_id")
+    private UUID lessonId;
+
+    @Column(name = "lesson_title")
+    private String lessonTitle;
+
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 

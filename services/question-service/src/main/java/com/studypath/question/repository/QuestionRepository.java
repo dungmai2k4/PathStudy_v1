@@ -10,8 +10,10 @@ import java.util.UUID;
 @Repository
 public interface QuestionRepository extends JpaRepository<QuestionEntity, UUID> {
     List<QuestionEntity> findByQuestionBankId(UUID questionBankId);
+    List<QuestionEntity> findByQuestionBankIdAndDifficulty(UUID questionBankId, String difficulty);
     List<QuestionEntity> findBySkillId(UUID skillId);
     List<QuestionEntity> findBySkillIdAndDifficulty(UUID skillId, String difficulty);
+    List<QuestionEntity> findByDifficulty(String difficulty);
     List<QuestionEntity> findByTopicId(UUID topicId);
     List<QuestionEntity> findByModuleId(UUID moduleId);
 }

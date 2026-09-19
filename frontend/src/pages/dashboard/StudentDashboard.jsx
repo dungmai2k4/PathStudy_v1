@@ -82,6 +82,16 @@ export default function StudentDashboard() {
   const [showSubjectPickerModal, setShowSubjectPickerModal] = useState(false);
 
   useEffect(() => {
+    const roles = (user?.roles || []).map((r) => r.replace('ROLE_', '').toUpperCase());
+    if (roles.includes('ADMIN')) {
+      navigate('/admin/users', { replace: true });
+      return;
+    }
+    if (roles.includes('MANAGER')) {
+      navigate('/manager', { replace: true });
+      return;
+    }
+
     const fetchData = async () => {
       try {
         setLoading(true);

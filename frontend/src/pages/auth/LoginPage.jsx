@@ -18,8 +18,15 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(username, password);
-      navigate('/');
+      const data = await login(username, password);
+      const roles = (data?.user?.roles || []).map((r) => r.replace('ROLE_', '').toUpperCase());
+      if (roles.includes('ADMIN')) {
+        navigate('/admin/users');
+      } else if (roles.includes('MANAGER')) {
+        navigate('/manager');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       const msg = err.response?.data?.message || 'Tài khoản hoặc mật khẩu không chính xác.';
       setError(msg);

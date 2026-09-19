@@ -59,13 +59,15 @@ export const adaptiveService = {
     return response.data.data || [];
   },
 
-  // Handle topic test failed (< 80%): activate remedial lessons
-  async handleTopicTestFailed(studentId, subjectId, topicId, scorePercentage) {
+  // Handle topic test failed (< 80%): activate remedial lessons & reorder weak lessons
+  async handleTopicTestFailed(studentId, subjectId, topicId, scorePercentage, weakLessonIds = [], weakLessonTitles = []) {
     const response = await api.post('/api/v1/adaptive/study-path/topic-test/failed', {
       studentId,
       subjectId,
       topicId,
       scorePercentage,
+      weakLessonIds,
+      weakLessonTitles,
     });
     return response.data.data;
   },

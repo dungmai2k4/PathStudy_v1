@@ -16,6 +16,7 @@ public class QuestionDto {
     private UUID topicId;
     private UUID moduleId;
     private UUID skillId;
+    private UUID lessonId;
     private String content;
     private String difficulty;
     private String explanation;

@@ -78,6 +78,8 @@ public class AssessmentDtos {
         private UUID topicId;
         private UUID skillId;
         private String skillName;
+        private UUID lessonId;
+        private String lessonTitle;
         private String content;
         private String difficulty;
         private Integer displayOrder;
@@ -118,6 +120,18 @@ public class AssessmentDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    public static class WeakLessonDto {
+        private UUID lessonId;
+        private String lessonTitle;
+        private Integer wrongCount;
+        private Integer totalQuestions;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class AssessmentResultDto {
         private UUID attemptId;
         private UUID assessmentId;
@@ -135,6 +149,7 @@ public class AssessmentDtos {
         private Instant submittedAt;
         private List<SkillResultDto> skillBreakdown;
         private List<AnswerDetailDto> answerDetails;
+        private List<WeakLessonDto> weakLessons;
     }
 
     @Getter
@@ -158,6 +173,8 @@ public class AssessmentDtos {
     @Builder
     public static class AnswerDetailDto {
         private UUID questionId;
+        private UUID lessonId;
+        private String lessonTitle;
         private String content;
         private UUID selectedOptionId;
         private UUID correctOptionId;

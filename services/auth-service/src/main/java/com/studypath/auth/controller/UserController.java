@@ -59,6 +59,22 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("Subscribed successfully! Pro features unlocked."));
     }
 
+    @PostMapping("/internal/subscriptions/activate")
+    public ResponseEntity<ApiResponse<String>> activateInternalSubscription(
+            @Valid @RequestBody ActivateSubscriptionRequest request
+    ) {
+        subscriptionService.subscribe(request.getUserId(), request.getPlanCode(), request.getPaymentReference());
+        return ResponseEntity.ok(ApiResponse.ok("Subscription activated successfully via internal payment service"));
+    }
+
+    @GetMapping("/internal/subscriptions/active")
+    public ResponseEntity<ApiResponse<List<String>>> getActivePlanCodes(
+            @RequestParam("userId") UUID userId
+    ) {
+        List<String> activePlanCodes = subscriptionService.getActivePlanCodes(userId);
+        return ResponseEntity.ok(ApiResponse.ok(activePlanCodes));
+    }
+
     // --- Admin User Management Endpoints ---
 
     @GetMapping

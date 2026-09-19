@@ -81,6 +81,7 @@ public class AdaptiveDtos {
         private Boolean hasRemedialActive;
         private String remedialReason;
         private Integer lessonCount;
+        private String lessonOrderJson;
     }
 
     @Getter
@@ -161,6 +162,8 @@ public class AdaptiveDtos {
         private UUID subjectId;
         private UUID topicId;
         private Integer scorePercentage;
+        private List<UUID> weakLessonIds;
+        private List<String> weakLessonTitles;
     }
 
     @Getter

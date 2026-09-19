@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import managerService from '../../services/managerService';
 import { 
   HelpCircle, Plus, Filter, Trash2, CheckCircle2, 
-  X, FolderPlus, Sparkles, BookOpen, AlertCircle, Check 
+  X, FolderPlus, Sparkles, BookOpen, AlertCircle, Check,
+  Search, RotateCcw
 } from 'lucide-react';
 
 export default function QuestionBankManagerPage() {
@@ -11,9 +12,13 @@ export default function QuestionBankManagerPage() {
   const [banks, setBanks] = useState([]);
   const [selectedBank, setSelectedBank] = useState(null);
   const [skills, setSkills] = useState([]);
-  const [questions, setQuestions] = useState([]);
+  const [allQuestions, setAllQuestions] = useState([]);
 
+  // Filter criteria
   const [difficultyFilter, setDifficultyFilter] = useState('ALL');
+  const [skillFilter, setSkillFilter] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -78,17 +83,16 @@ export default function QuestionBankManagerPage() {
   const handleSelectBank = async (bank) => {
     setSelectedBank(bank);
     setSelectedSubjectId(bank.subjectId);
-    loadQuestions(bank.id, difficultyFilter);
+    loadQuestions(bank.id);
   };
 
-  const loadQuestions = async (bankId, difficulty) => {
+  const loadQuestions = async (bankId) => {
     setQuestionsLoading(true);
     try {
       const data = await managerService.getQuestionsForManager({
         questionBankId: bankId,
-        difficulty: difficulty,
       });
-      setQuestions(data || []);
+      setAllQuestions(data || []);
     } catch (err) {
       console.error('Lỗi tải câu hỏi:', err);
     } finally {
@@ -96,12 +100,48 @@ export default function QuestionBankManagerPage() {
     }
   };
 
+  // Filtered questions memoized for instant, jump-free updates
+  const filteredQuestions = useMemo(() => {
+    return allQuestions.filter((q) => {
+      const qDiff = (q.difficulty || '').toUpperCase();
+      const matchesDiff = difficultyFilter === 'ALL' || qDiff === difficultyFilter;
+
+      const matchesSkill = skillFilter === 'ALL' || q.skillId === skillFilter;
+
+      const query = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        !query ||
+        q.content?.toLowerCase().includes(query) ||
+        q.explanation?.toLowerCase().includes(query) ||
+        q.options?.some((opt) => opt.optionContent?.toLowerCase().includes(query));
+
+      return matchesDiff && matchesSkill && matchesSearch;
+    });
+  }, [allQuestions, difficultyFilter, skillFilter, searchQuery]);
+
+  // Real-time difficulty count badges
+  const diffCounts = useMemo(() => {
+    const counts = { ALL: allQuestions.length, EASY: 0, MEDIUM: 0, HARD: 0 };
+    allQuestions.forEach((q) => {
+      const diff = (q.difficulty || '').toUpperCase();
+      if (counts[diff] !== undefined) {
+        counts[diff] += 1;
+      }
+    });
+    return counts;
+  }, [allQuestions]);
+
   const handleDifficultyFilterChange = (diff) => {
     setDifficultyFilter(diff);
-    if (selectedBank) {
-      loadQuestions(selectedBank.id, diff);
-    }
   };
+
+  const handleResetFilters = () => {
+    setDifficultyFilter('ALL');
+    setSkillFilter('ALL');
+    setSearchQuery('');
+  };
+
+  const isFiltered = difficultyFilter !== 'ALL' || skillFilter !== 'ALL' || searchQuery.trim() !== '';
 
   const handleCreateBank = async (e) => {
     e.preventDefault();
@@ -151,7 +191,7 @@ export default function QuestionBankManagerPage() {
       });
       setSuccessMsg('Thêm câu hỏi mới thành công!');
       setTimeout(() => setSuccessMsg(''), 4000);
-      loadQuestions(selectedBank.id, difficultyFilter);
+      loadQuestions(selectedBank.id);
       // refresh question count
       const updated = await managerService.getQuestionBanks();
       setBanks(updated || []);
@@ -166,11 +206,40 @@ export default function QuestionBankManagerPage() {
       await managerService.deleteQuestion(questionId);
       setSuccessMsg('Đã xóa câu hỏi thành công.');
       setTimeout(() => setSuccessMsg(''), 4000);
-      loadQuestions(selectedBank.id, difficultyFilter);
+      loadQuestions(selectedBank.id);
       const updated = await managerService.getQuestionBanks();
       setBanks(updated || []);
     } catch (err) {
       alert('Lỗi xóa câu hỏi: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleDeleteBank = async (bankToDelete) => {
+    if (!bankToDelete) return;
+    const count = bankToDelete.questionCount || 0;
+    const confirmMsg = `Bạn có chắc chắn muốn xóa ngân hàng đề:\n"${bankToDelete.name}"?\n\n⚠️ CẢNH BÁO: Toàn bộ ${count} câu hỏi bên trong ngân hàng đề này cũng sẽ bị xóa vĩnh viễn và không thể khôi phục!`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await managerService.deleteQuestionBank(bankToDelete.id);
+      setSuccessMsg(`Đã xóa ngân hàng đề "${bankToDelete.name}" thành công.`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+
+      // Reload bank list
+      const updated = await managerService.getQuestionBanks();
+      setBanks(updated || []);
+
+      // If the deleted bank was selected, switch to the first remaining bank
+      if (selectedBank?.id === bankToDelete.id) {
+        if (updated && updated.length > 0) {
+          handleSelectBank(updated[0]);
+        } else {
+          setSelectedBank(null);
+          setAllQuestions([]);
+        }
+      }
+    } catch (err) {
+      alert('Lỗi khi xóa ngân hàng đề: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -228,17 +297,17 @@ export default function QuestionBankManagerPage() {
         </div>
       )}
 
-      {/* Main Layout: Bank Selector on Left, Question List on Right */}
+      {/* Main Layout: Bank Selector on Left (Sticky), Question List on Right */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* Left: Banks List */}
-        <div className="md:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 space-y-3">
+        {/* Left: Banks List (Sticky to prevent layout jump when scrolling questions) */}
+        <div className="md:col-span-4 sticky top-6 self-start bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Ngân hàng câu hỏi ({banks.length})
             </span>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
             {loading ? (
               <div className="p-6 text-center text-xs text-slate-400">Đang tải...</div>
             ) : banks.length === 0 ? (
@@ -248,25 +317,38 @@ export default function QuestionBankManagerPage() {
                 const isSelected = selectedBank?.id === b.id;
                 const subjectName = subjects.find((s) => s.id === b.subjectId)?.name || 'Môn học';
                 return (
-                  <button
+                  <div
                     key={b.id}
                     onClick={() => handleSelectBank(b)}
-                    className={`w-full text-left p-3.5 rounded-xl text-sm transition flex flex-col gap-1 ${
+                    className={`group w-full text-left p-3.5 rounded-xl text-sm transition flex flex-col gap-1 cursor-pointer ${
                       isSelected
                         ? 'bg-purple-50 text-purple-900 border border-purple-200 font-semibold shadow-2xs'
                         : 'text-slate-700 hover:bg-slate-50 border border-slate-100'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="truncate">{b.name}</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/80 border border-slate-200 text-slate-600">
-                        {b.questionCount || 0} câu
-                      </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate flex-1 font-medium">{b.name}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/80 border border-slate-200 text-slate-600">
+                          {b.questionCount || 0} câu
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteBank(b);
+                          }}
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                          title={`Xóa ngân hàng đề "${b.name}"`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                     <div className="text-xs text-slate-400 font-normal">
                       Môn: {subjectName}
                     </div>
-                  </button>
+                  </div>
                 );
               })
             )}
@@ -274,61 +356,176 @@ export default function QuestionBankManagerPage() {
         </div>
 
         {/* Right: Questions of Selected Bank */}
-        <div className="md:col-span-8 space-y-4">
+        <div className="md:col-span-8 space-y-4 min-h-[550px]">
           {/* Controls Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row justify-between items-center gap-3">
-            <div>
-              <h3 className="font-bold text-slate-900 text-base">
-                {selectedBank ? selectedBank.name : 'Chọn một ngân hàng để xem câu hỏi'}
-              </h3>
-              <p className="text-xs text-slate-500">
-                Hiển thị danh sách câu hỏi kèm đáp án đúng được Manager cấu hình
-              </p>
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3.5">
+            {/* Top row: Title, Total Count, and Delete Bank Button */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">
+                  {selectedBank ? selectedBank.name : 'Chọn một ngân hàng để xem câu hỏi'}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {selectedBank?.description || 'Hiển thị danh sách câu hỏi kèm đáp án đúng được Manager cấu hình'}
+                </p>
+              </div>
+              {selectedBank && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                    Tổng: {allQuestions.length} câu
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteBank(selectedBank)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition"
+                    title={`Xóa ngân hàng đề "${selectedBank.name}"`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Xóa ngân hàng</span>
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500">Độ khó:</span>
-              <div className="inline-flex rounded-xl bg-slate-100 p-1">
-                {['ALL', 'EASY', 'MEDIUM', 'HARD'].map((diff) => (
+            {/* Middle row: Search Bar & Skill Filter & Difficulty Tabs */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
+              {/* Search input */}
+              <div className="relative min-w-[200px] flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Tìm nội dung câu hỏi, giải thích..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-purple-500 focus:bg-white text-slate-800 transition"
+                />
+                {searchQuery && (
                   <button
-                    key={diff}
-                    onClick={() => handleDifficultyFilterChange(diff)}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                      difficultyFilter === diff
-                        ? 'bg-white text-purple-700 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    {diff === 'ALL' ? 'Tất cả' : diff}
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                ))}
+                )}
+              </div>
+
+              {/* Skills dropdown filter (if skills available) */}
+              {skills.length > 0 && (
+                <div className="min-w-[160px]">
+                  <select
+                    value={skillFilter}
+                    onChange={(e) => setSkillFilter(e.target.value)}
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  >
+                    <option value="ALL">Tất cả kỹ năng ({skills.length})</option>
+                    {skills.map((skl) => (
+                      <option key={skl.id} value={skl.id}>
+                        {skl.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Difficulty Tabs with Whitespace-nowrap & Realtime Counts */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs font-semibold text-slate-500 hidden sm:inline">Độ khó:</span>
+                <div className="inline-flex rounded-xl bg-slate-100 p-1 flex-nowrap">
+                  {[
+                    { key: 'ALL', label: 'Tất cả', count: diffCounts.ALL },
+                    { key: 'EASY', label: 'EASY', count: diffCounts.EASY, color: 'text-emerald-700' },
+                    { key: 'MEDIUM', label: 'MEDIUM', count: diffCounts.MEDIUM, color: 'text-amber-700' },
+                    { key: 'HARD', label: 'HARD', count: diffCounts.HARD, color: 'text-rose-700' },
+                  ].map((tab) => {
+                    const isActive = difficultyFilter === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => handleDifficultyFilterChange(tab.key)}
+                        className={`whitespace-nowrap px-2.5 py-1 rounded-lg text-xs font-semibold transition shrink-0 flex items-center gap-1 ${
+                          isActive
+                            ? `bg-white ${tab.color || 'text-purple-700'} shadow-xs font-bold`
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <span>{tab.label}</span>
+                        <span className={`text-[10px] px-1 py-0.2 rounded-full font-medium ${
+                          isActive ? 'bg-slate-100 text-slate-700' : 'text-slate-400'
+                        }`}>
+                          {tab.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
+
+            {/* Filter status row (if any filter is applied) */}
+            {isFiltered && (
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-1.5 border-t border-slate-50">
+                <div className="flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-purple-600" />
+                  <span>
+                    Hiển thị <strong className="text-slate-800">{filteredQuestions.length}</strong> / {allQuestions.length} câu hỏi phù hợp
+                  </span>
+                </div>
+                <button
+                  onClick={handleResetFilters}
+                  className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-800 font-semibold hover:underline"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Đặt lại bộ lọc</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Question List */}
-          <div className="space-y-3">
+          {/* Question List (Min height to prevent sudden layout shrink) */}
+          <div className="space-y-3 min-h-[380px]">
             {questionsLoading ? (
-              <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-sm text-slate-400">
-                Đang tải danh sách câu hỏi...
+              <div className="bg-white p-16 rounded-2xl border border-slate-200 text-center text-sm text-slate-400 space-y-3">
+                <div className="w-7 h-7 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p>Đang tải danh sách câu hỏi...</p>
               </div>
-            ) : questions.length === 0 ? (
-              <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-sm text-slate-400">
-                Chưa có câu hỏi nào trong ngân hàng này với bộ lọc hiện tại. Bấm "Thêm câu hỏi mới" để bắt đầu soạn đề.
+            ) : filteredQuestions.length === 0 ? (
+              <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-sm text-slate-500 space-y-3">
+                <AlertCircle className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="font-medium text-slate-700">
+                  {allQuestions.length === 0
+                    ? 'Chưa có câu hỏi nào trong ngân hàng này.'
+                    : 'Không tìm thấy câu hỏi nào phù hợp với bộ lọc hiện tại.'}
+                </p>
+                {isFiltered ? (
+                  <button
+                    onClick={handleResetFilters}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-xl text-xs font-semibold hover:bg-purple-100 transition"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Xóa bộ lọc để xem tất cả {allQuestions.length} câu</span>
+                  </button>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    Bấm "Thêm câu hỏi mới" ở góc trên bên phải để bắt đầu soạn đề.
+                  </p>
+                )}
               </div>
             ) : (
-              questions.map((q, idx) => {
+              filteredQuestions.map((q, idx) => {
+                const qDiff = (q.difficulty || 'MEDIUM').toUpperCase();
                 const diffBadge =
-                  q.difficulty === 'EASY'
+                  qDiff === 'EASY'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : q.difficulty === 'HARD'
-                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : qDiff === 'HARD'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
                     : 'bg-amber-50 text-amber-700 border-amber-200';
+
+                const skillName = skills.find((s) => s.id === q.skillId)?.name;
 
                 return (
                   <div
                     key={q.id}
-                    className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3 hover:border-purple-200 transition"
+                    className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3 hover:border-purple-200 transition-all duration-150"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3">
@@ -339,10 +536,15 @@ export default function QuestionBankManagerPage() {
                           <div className="font-semibold text-slate-900 text-sm leading-relaxed">
                             {q.content}
                           </div>
-                          <div className="flex items-center gap-2 mt-1.5">
+                          <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${diffBadge}`}>
-                              {q.difficulty}
+                              {qDiff}
                             </span>
+                            {skillName && (
+                              <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                {skillName}
+                              </span>
+                            )}
                             {q.explanation && (
                               <span className="text-xs text-slate-500 italic">
                                 Giải thích: {q.explanation}
@@ -353,7 +555,7 @@ export default function QuestionBankManagerPage() {
                       </div>
                       <button
                         onClick={() => handleDeleteQuestion(q.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shrink-0"
                         title="Xóa câu hỏi"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -375,7 +577,7 @@ export default function QuestionBankManagerPage() {
                             }`}
                           >
                             <span
-                              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
                                 isCorrect
                                   ? 'bg-emerald-600 text-white'
                                   : 'bg-slate-200 text-slate-600'

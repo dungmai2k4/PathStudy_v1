@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   Lock, CheckCircle2, ChevronDown, ChevronRight,
-  RotateCcw, X, Check, Award, Play, AlertTriangle, BookOpen, Clock, FileText, CheckCircle
+  RotateCcw, X, Check, Award, Play, AlertTriangle, BookOpen, Clock, FileText, CheckCircle, Shuffle
 } from 'lucide-react';
 
 const ENGLISH_SUBJECT_ID = '11111111-1111-1111-1111-111111111101';
@@ -32,7 +32,7 @@ const formatDateTime = (att) => {
 };
 
 /* ── Sidebar: Individual lesson row with sequential locking & quiz status ── */
-function LessonRow({ lesson, lessonIdx, isLocked, isCompleted, quizCompleted, quizScore, isActive, onClick }) {
+function LessonRow({ lesson, lessonIdx, isLocked, isCompleted, quizCompleted, quizScore, isActive, isWeakLesson, onClick }) {
   const [hov, setHov] = useState(false);
   return (
     <button
@@ -87,9 +87,14 @@ function LessonRow({ lesson, lessonIdx, isLocked, isCompleted, quizCompleted, qu
           }}
           title={lesson.title}
         >
+          {isWeakLesson && (
+            <span style={{ fontSize: 9.5, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecaca', padding: '1px 5px', marginRight: 4, borderRadius: 2, fontWeight: 700 }}>
+              Cần củng cố
+            </span>
+          )}
           {lesson.isRemedial && (
-            <span style={{ fontSize: 10, color: '#b45309', background: '#fef3c7', padding: '1px 4px', marginRight: 4, borderRadius: 2 }}>
-              Ôn tập
+            <span style={{ fontSize: 9.5, color: '#b45309', background: '#fef3c7', border: '1px solid #fde68a', padding: '1px 5px', marginRight: 4, borderRadius: 2, fontWeight: 600 }}>
+              Luyện lại
             </span>
           )}
           {lesson.title}
@@ -133,8 +138,17 @@ function TopicItem({
   const isLocked = node.status === 'LOCKED';
   const isRemedial = node.status === 'NEEDS_REMEDIATION' || node.hasRemedialActive;
 
+  // Weak lessons from node.lessonOrderJson
+  let weakLessonIds = [];
+  if (node.lessonOrderJson) {
+    try {
+      const parsed = JSON.parse(node.lessonOrderJson);
+      if (Array.isArray(parsed)) weakLessonIds = parsed;
+    } catch (e) {}
+  }
+
   // Combine regular and remedial lessons (if remedial mode active)
-  const combinedLessons = [...(lessons || [])];
+  let combinedLessons = [...(lessons || [])];
   if (isRemedial && remedialLessons && remedialLessons.length > 0) {
     remedialLessons.forEach(rl => {
       if (!combinedLessons.some(cl => cl.id === rl.id)) {
@@ -142,6 +156,31 @@ function TopicItem({
       }
     });
   }
+
+  // Adaptively sort combinedLessons:
+  // 1. Lessons that student was weak at in Topic Test come FIRST
+  // 2. Remedial lessons come NEXT
+  // 3. Other lessons follow in normal order
+  if (weakLessonIds.length > 0) {
+    combinedLessons.sort((a, b) => {
+      const aWeak = weakLessonIds.includes(a.id);
+      const bWeak = weakLessonIds.includes(b.id);
+      if (aWeak && !bWeak) return -1;
+      if (!aWeak && bWeak) return 1;
+      if (a.isRemedial && !b.isRemedial) return -1;
+      if (!a.isRemedial && b.isRemedial) return 1;
+      return (a.displayOrder || 0) - (b.displayOrder || 0);
+    });
+  }
+
+  // Check if all regular lessons (isRemedial == false) are completed:
+  // "chưa xong lession trong topic thì sẽ khóa tính năng test (trừ mục luyện lại). nếu mở hết lession rồi thì được phép làm bài kiểm tra."
+  const regularLessons = combinedLessons.filter(l => !l.isRemedial);
+  const allRegularLessonsDone = regularLessons.length > 0 && regularLessons.every(l => {
+    const prog = lessonProgressMap[l.id];
+    return isCompleted || (prog && prog.isCompleted && prog.quizCompleted);
+  });
+  const canTakeTest = isCompleted || allRegularLessonsDone;
 
   return (
     <div style={{ borderBottom: '1px solid #f3f4f6' }}>
@@ -191,7 +230,7 @@ function TopicItem({
           {isRemedial && (
             <div style={{ margin: '4px 12px 6px 32px', padding: '6px 8px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 3 }}>
               <div style={{ fontSize: 11, color: '#b45309', lineHeight: 1.35 }}>
-                ⚠️ Bạn chưa đạt 80% bài kiểm tra Topic. Vui lòng hoàn thành các bài ôn tập bổ sung bên dưới!
+                ⚠️ {node.remedialReason || 'Bạn chưa đạt 80% bài kiểm tra Topic. Vui lòng hoàn thành các bài ôn tập bổ sung bên dưới!'}
               </div>
             </div>
           )}
@@ -199,17 +238,20 @@ function TopicItem({
           {combinedLessons && combinedLessons.length > 0 ? (
             combinedLessons.map((l, i) => {
               // Sequential Gating rule:
+              // Remedial lessons are always unlocked once remedial mode is active so the student can review them freely!
+              // For regular lessons:
               // Lesson 0 is unlocked.
               // Lesson i is unlocked if Lesson i-1 is completed & quiz completed, or if whole topic is completed.
               const prevL = i > 0 ? combinedLessons[i - 1] : null;
               const prevProg = prevL ? lessonProgressMap[prevL.id] : null;
-              const prevDone = i === 0 || isCompleted || (prevProg && prevProg.isCompleted && prevProg.quizCompleted);
+              const prevDone = i === 0 || isCompleted || l.isRemedial || (prevProg && prevProg.isCompleted && prevProg.quizCompleted);
               const lessonLocked = !prevDone;
 
               const currProg = lessonProgressMap[l.id];
               const isComp = isCompleted || (currProg && currProg.isCompleted);
               const quizDone = currProg && currProg.quizCompleted;
               const quizScr = currProg?.quizScore;
+              const isWeak = weakLessonIds.includes(l.id);
 
               return (
                 <LessonRow
@@ -221,6 +263,7 @@ function TopicItem({
                   quizCompleted={quizDone}
                   quizScore={quizScr}
                   isActive={activeLessonId === l.id}
+                  isWeakLesson={isWeak}
                   onClick={() => onSelectLesson(l, node)}
                 />
               );
@@ -234,26 +277,33 @@ function TopicItem({
           {/* Button to open Topic Test */}
           <div style={{ padding: '6px 12px 4px 32px' }}>
             <button
-              onClick={() => onOpenTopicTest(node)}
+              disabled={!canTakeTest}
+              onClick={() => canTakeTest && onOpenTopicTest(node)}
+              title={!canTakeTest ? 'Bạn cần hoàn thành tất cả các bài học trong Topic để mở khóa bài kiểm tra' : ''}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '4px 8px',
-                background: isCompleted ? '#f0fdf4' : '#f8fafc',
-                border: isCompleted ? '1px solid #bbf7d0' : '1px dashed #cbd5e1',
+                padding: '5px 8px',
+                background: isCompleted ? '#f0fdf4' : canTakeTest ? '#f8fafc' : '#f1f5f9',
+                border: isCompleted ? '1px solid #bbf7d0' : canTakeTest ? '1px dashed #cbd5e1' : '1px solid #e2e8f0',
                 borderRadius: 3,
                 fontSize: 11,
-                color: isCompleted ? '#166534' : '#334155',
-                cursor: 'pointer',
+                color: isCompleted ? '#166534' : canTakeTest ? '#334155' : '#94a3b8',
+                cursor: canTakeTest ? 'pointer' : 'not-allowed',
                 width: '100%',
                 justifyContent: 'center',
                 fontFamily: FONT,
                 fontWeight: 600,
+                opacity: canTakeTest ? 1 : 0.75,
               }}
             >
-              <Award size={12} color={isCompleted ? '#16a34a' : '#475569'} />
-              {isCompleted ? 'Kiểm tra lại Topic' : 'Làm bài kiểm tra Topic'}
+              {canTakeTest ? (
+                <Award size={12} color={isCompleted ? '#16a34a' : '#475569'} />
+              ) : (
+                <Lock size={12} color="#94a3b8" />
+              )}
+              {isCompleted ? 'Kiểm tra lại Topic' : canTakeTest ? 'Làm bài kiểm tra Topic' : 'Làm bài kiểm tra Topic (Khóa)'}
             </button>
           </div>
         </div>
@@ -262,7 +312,7 @@ function TopicItem({
   );
 }
 
-/* ── Fallback 2-3 Mini-Quiz questions per lesson ── */
+/* ── Fallback Mini-Quiz pools (5 questions per topic for random selection) ── */
 const FALLBACK_LESSON_QUIZZES = {
   present_perfect_form: [
     {
@@ -282,6 +332,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["S + don't/doesn't + have + V3/ed", "S + haven't/hasn't + V3/ed", "S + haven't/hasn't + V-inf", "S + didn't + have + V3/ed"],
       answer: "S + haven't/hasn't + V3/ed",
       explanation: "Dạng phủ định thêm 'not' trực tiếp sau have/has: haven't / hasn't + V3/ed."
+    },
+    {
+      question: "Cấu trúc câu hỏi nghi vấn Yes/No của thì Hiện tại hoàn thành là:",
+      options: ["Have/Has + S + V3/ed?", "Do/Does + S + have + V3/ed?", "Did + S + have + V3/ed?", "Had + S + V-ing?"],
+      answer: "Have/Has + S + V3/ed?",
+      explanation: "Đảo trợ động từ Have/Has lên trước chủ ngữ: Have/Has + S + V3/ed?"
+    },
+    {
+      question: "He ___ his passport, so he cannot board the plane now.",
+      options: ["has lost", "lost", "had lost", "loses"],
+      answer: "has lost",
+      explanation: "Hành động làm mất hộ chiếu trong quá khứ để lại kết quả trực tiếp ở hiện tại (không thể lên máy bay)."
     }
   ],
   present_perfect_since_for: [
@@ -302,6 +364,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["two weeks", "a long time", "2018", "ten months"],
       answer: "2018",
       explanation: "'2018' là mốc thời gian xác định nên đi với 'since', các phương án còn lại là khoảng thời gian (dùng 'for')."
+    },
+    {
+      question: "Cụm từ nào sau đây đi với 'for'?",
+      options: ["yesterday morning", "three days", "last Christmas", "she arrived"],
+      answer: "three days",
+      explanation: "'three days' là khoảng thời gian kéo dài, đi kèm giới từ 'for'."
+    },
+    {
+      question: "We haven't seen each other ___ we left high school.",
+      options: ["since", "for", "during", "ago"],
+      answer: "since",
+      explanation: "'we left high school' là một mệnh đề chỉ mốc sự kiện trong quá khứ, dùng 'since + clause'."
     }
   ],
   present_perfect_signals: [
@@ -322,6 +396,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["ever", "yet", "already", "since"],
       answer: "ever",
       explanation: "'Have you ever...?' là cấu trúc chuẩn để hỏi về trải nghiệm từ trước đến nay."
+    },
+    {
+      question: "Từ nào mang nghĩa 'vừa mới' diễn tả hành động vừa hoàn tất cách đây ít phút?",
+      options: ["just", "yet", "ever", "ago"],
+      answer: "just",
+      explanation: "'just' đứng giữa have/has và V3/ed mang nghĩa vừa mới làm xong điều gì."
+    },
+    {
+      question: "I have ___ completed all my assignments and I am ready to rest.",
+      options: ["already", "yet", "ever", "never"],
+      answer: "already",
+      explanation: "'already' diễn tả hành động đã hoàn tất sớm hơn dự kiến trong câu khẳng định."
     }
   ],
   past_perfect_form: [
@@ -342,6 +428,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["S + hadn't + V3/ed", "S + didn't had + V3/ed", "S + wasn't + V3/ed", "S + haven't + V3/ed"],
       answer: "S + hadn't + V3/ed",
       explanation: "Thêm 'not' vào sau 'had' thành 'had not' hoặc 'hadn't' + V3/ed."
+    },
+    {
+      question: "Câu nghi vấn đảo ngữ của thì Quá khứ hoàn thành bắt đầu bằng trợ động từ nào?",
+      options: ["Had", "Have", "Did", "Was"],
+      answer: "Had",
+      explanation: "Cấu trúc câu hỏi: Had + S + V3/ed?"
+    },
+    {
+      question: "She told me that she ___ that museum twice before.",
+      options: ["had visited", "has visited", "visited", "was visiting"],
+      answer: "had visited",
+      explanation: "Hành động tham quan xảy ra trước thời điểm kể lại 'told' trong quá khứ."
     }
   ],
   past_perfect_clauses: [
@@ -362,6 +460,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["had ended", "ended", "has ended", "was ending"],
       answer: "had ended",
       explanation: "'By the time + S + V2/ed, S + had V3/ed' là cấu trúc phối hợp thì kinh điển trong đề thi."
+    },
+    {
+      question: "As soon as the teacher ___ the exam papers, the students began writing.",
+      options: ["had handed out", "has handed out", "hands out", "was handing out"],
+      answer: "had handed out",
+      explanation: "Hành động phát đề xảy ra trước và hoàn tất rồi học sinh mới bắt đầu viết."
+    },
+    {
+      question: "Hardly ___ when the electricity went off.",
+      options: ["had he started working", "he had started working", "did he start working", "has he started working"],
+      answer: "had he started working",
+      explanation: "Cấu trúc đảo ngữ: Hardly + had + S + V3/ed + when + S + V2/ed."
     }
   ],
   past_simple_vs_past_perfect: [
@@ -382,6 +492,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["came / had gone", "had come / went", "came / went", "come / had gone"],
       answer: "came / had gone",
       explanation: "Mọi người về nhà trước khi tôi đến, nên 'came' (quá khứ đơn) và 'had gone' (quá khứ hoàn thành)."
+    },
+    {
+      question: "The grass was yellow because it ___ for weeks.",
+      options: ["hadn't rained", "hasn't rained", "didn't rain", "wasn't raining"],
+      answer: "hadn't rained",
+      explanation: "Việc không mưa diễn ra trước trạng thái cỏ vàng 'was yellow'."
+    },
+    {
+      question: "Tom ___ the door after everyone ___ the building.",
+      options: ["locked / had left", "had locked / left", "locked / left", "has locked / left"],
+      answer: "locked / had left",
+      explanation: "Mọi người rời đi trước (had left), sau đó Tom mới khóa cửa (locked)."
     }
   ],
   present_perfect_vs_past_simple: [
@@ -402,6 +524,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["has written", "wrote", "had written", "writes"],
       answer: "wrote",
       explanation: "Shakespeare đã qua đời, hành động không còn liên hệ đến hiện tại nên dùng Quá khứ đơn."
+    },
+    {
+      question: "I ___ my keys! I can't open the door right now.",
+      options: ["have lost", "lost", "had lost", "was losing"],
+      answer: "have lost",
+      explanation: "Hành động mất chìa khóa diễn ra trong quá khứ nhưng để lại hậu quả hiện tại không vào được nhà."
+    },
+    {
+      question: "My brother ___ from university two years ago.",
+      options: ["graduated", "has graduated", "had graduated", "graduates"],
+      answer: "graduated",
+      explanation: "Có trạng từ 'two years ago' chỉ mốc thời gian quá khứ rõ ràng nên dùng Quá khứ đơn."
     }
   ],
   time_expressions: [
@@ -422,12 +556,24 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["up to now", "recently", "last night", "lately"],
       answer: "last night",
       explanation: "'last night' là thời điểm quá khứ xác định, đi với thì Quá khứ đơn."
+    },
+    {
+      question: "Cụm 'over the past few years' thường đi với thì nào?",
+      options: ["Hiện tại hoàn thành", "Quá khứ đơn", "Tương lai đơn", "Quá khứ tiếp diễn"],
+      answer: "Hiện tại hoàn thành",
+      explanation: "'over the past few years' (trong vài năm qua) diễn tả quá trình kéo dài đến nay, dùng Hiện tại hoàn thành."
+    },
+    {
+      question: "He hasn't written any letters to his parents ___.",
+      options: ["recently", "yesterday", "last week", "two months ago"],
+      answer: "recently",
+      explanation: "'recently' (gần đây) dùng với câu thì Hiện tại hoàn thành."
     }
   ],
   remedial_tenses: [
     {
       question: "Yesterday I ___ a new jacket, but today I ___ that the zipper is broken.",
-      options: ["bought / noticed", "bought / have noticed", "have bought / noticed", "had bought / notice"],
+      options: ["bought / have noticed", "bought / noticed", "have bought / noticed", "had bought / notice"],
       answer: "bought / have noticed",
       explanation: "'Yesterday' dùng quá khứ đơn (bought), 'today' kết quả nhận thấy ở hiện tại dùng Hiện tại hoàn thành (have noticed)."
     },
@@ -442,6 +588,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["shouts", "is shouting", "has shouted", "shouted"],
       answer: "is shouting",
       explanation: "Dấu hiệu mệnh lệnh 'Listen!' diễn tả hành động đang diễn ra tại thời điểm nói (Hiện tại tiếp diễn)."
+    },
+    {
+      question: "While I ___ down the street, I ___ an old friend.",
+      options: ["was walking / met", "walked / had met", "had walked / was meeting", "was walking / have met"],
+      answer: "was walking / met",
+      explanation: "Hành động đang diễn ra (was walking) thì hành động khác chen ngang (met)."
+    },
+    {
+      question: "Up to the present, our team ___ five important milestones.",
+      options: ["has achieved", "achieved", "had achieved", "achieves"],
+      answer: "has achieved",
+      explanation: "'Up to the present' (cho tới nay) là dấu hiệu kinh điển của thì Hiện tại hoàn thành."
     }
   ],
   zero_conditional: [
@@ -462,6 +620,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["don't get", "won't get", "didn't get", "haven't got"],
       answer: "don't get",
       explanation: "Điều kiện loại 0 diễn tả sự thật tự nhiên: If + S + don't/doesn't + V-inf."
+    },
+    {
+      question: "If people don't eat or drink, they ___ survive.",
+      options: ["cannot", "won't have", "could not have", "didn't"],
+      answer: "cannot",
+      explanation: "Sự thật hiển nhiên về sinh học trong điều kiện loại 0: dùng hiện tại đơn / can / cannot."
+    },
+    {
+      question: "Ice turns into water if you ___ it in room temperature.",
+      options: ["leave", "will leave", "left", "had left"],
+      answer: "leave",
+      explanation: "Quy luật vật lý tự nhiên: If + S + V(hiện tại đơn)."
     }
   ],
   first_conditional: [
@@ -482,6 +652,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["won't", "will", "would", "wouldn't"],
       answer: "won't",
       explanation: "Unless = If not. 'Trừ khi bạn chăm chỉ, bạn sẽ không vượt qua kỳ thi': dùng won't."
+    },
+    {
+      question: "If we catch the 8 AM train, we ___ arrive in time for the meeting.",
+      options: ["will", "would", "would have", "were to"],
+      answer: "will",
+      explanation: "Sự việc có khả năng cao diễn ra ở tương lai, mệnh đề chính dùng will + V-inf."
+    },
+    {
+      question: "What will happen if they ___ the deadline tomorrow?",
+      options: ["miss", "will miss", "missed", "are missing"],
+      answer: "miss",
+      explanation: "Mệnh đề If chia ở hiện tại đơn (miss)."
     }
   ],
   second_conditional: [
@@ -499,9 +681,21 @@ const FALLBACK_LESSON_QUIZZES = {
     },
     {
       question: "What ___ if you found a wallet full of money in the street?",
-      options: ["will you do", "would you do", "did you do", "would you have done"],
+      options: ["would you do", "will you do", "did you do", "would you have done"],
       answer: "would you do",
       explanation: "Mệnh đề If chia ở quá khứ đơn (found), mệnh đề chính dùng 'would + V-inf'."
+    },
+    {
+      question: "If she ___ more free time, she would travel around Southeast Asia.",
+      options: ["had", "has", "would have", "had had"],
+      answer: "had",
+      explanation: "Giả định trái thực tế ở hiện tại, mệnh đề If chia quá khứ đơn (had)."
+    },
+    {
+      question: "If I knew his contact number, I ___ him right now.",
+      options: ["would call", "will call", "called", "would have called"],
+      answer: "would call",
+      explanation: "Mệnh đề chính câu điều kiện loại 2 dùng 'would + V-inf'."
     }
   ],
   academic_collocations: [
@@ -522,6 +716,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["contribution", "distribution", "attribute", "tribute"],
       answer: "contribution",
       explanation: "'make a contribution to sth' nghĩa là đóng góp cho cái gì."
+    },
+    {
+      question: "The government needs to ___ measures to reduce environmental pollution.",
+      options: ["take", "make", "do", "give"],
+      answer: "take",
+      explanation: "'take measures / action' là kết hợp từ cố định mang nghĩa thực hiện biện pháp."
+    },
+    {
+      question: "Students should ___ advantage of library resources to improve their studies.",
+      options: ["take", "have", "make", "gain"],
+      answer: "take",
+      explanation: "'take advantage of sth' là thành ngữ chuẩn nghĩa là tận dụng cái gì."
     }
   ],
   word_formation: [
@@ -542,6 +748,18 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["development", "developer", "developing", "developed"],
       answer: "development",
       explanation: "Cụm danh từ 'The economic development' (sự phát triển kinh tế) đóng vai trò chủ ngữ."
+    },
+    {
+      question: "He is a very ___ worker who always finishes tasks on time. (RELY)",
+      options: ["reliable", "reliably", "reliance", "relying"],
+      answer: "reliable",
+      explanation: "Trước danh từ 'worker' cần tính từ: reliable (đáng tin cậy)."
+    },
+    {
+      question: "Many species face the threat of ___ due to deforestation. (EXTINCT)",
+      options: ["extinction", "extinct", "extinctive", "extinguishing"],
+      answer: "extinction",
+      explanation: "Sau giới từ 'of' cần một danh từ: extinction (sự tuyệt chủng)."
     }
   ],
   phrasal_verbs: [
@@ -562,19 +780,33 @@ const FALLBACK_LESSON_QUIZZES = {
       options: ["look up", "look for", "look after", "look out"],
       answer: "look up",
       explanation: "'look up a word' nghĩa là tra từ trong từ điển."
+    },
+    {
+      question: "They decided to ___ the meeting until next Monday.",
+      options: ["put off", "put on", "give in", "bring up"],
+      answer: "put off",
+      explanation: "'put off' có nghĩa là trì hoãn (postpone/delay)."
+    },
+    {
+      question: "She resembles her mother; she really ___ her.",
+      options: ["takes after", "takes off", "takes over", "takes in"],
+      answer: "takes after",
+      explanation: "'take after somebody' nghĩa là giống ai đó về ngoại hình hoặc tính cách."
     }
   ]
 };
 
-function getQuestionsForLesson(lesson, miniQuizzes) {
-  if (miniQuizzes && miniQuizzes.length > 0 && miniQuizzes[0].questionsJson) {
-    try {
-      const parsed = JSON.parse(miniQuizzes[0].questionsJson);
-      if (Array.isArray(parsed) && parsed.length >= 2) {
-        return parsed;
-      }
-    } catch (e) {}
+// Fisher-Yates shuffle helper
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+  return arr;
+}
+
+function getQuestionPoolForLesson(lesson) {
   const title = (lesson?.title || '').toLowerCase();
   if (title.includes('cấu trúc') && title.includes('hiện tại hoàn thành')) return FALLBACK_LESSON_QUIZZES.present_perfect_form;
   if (title.includes('since') || title.includes('for')) return FALLBACK_LESSON_QUIZZES.present_perfect_since_for;
@@ -614,8 +846,63 @@ function getQuestionsForLesson(lesson, miniQuizzes) {
       ],
       answer: "Xác định thì của câu dựa vào trạng từ chỉ thời gian và cấu trúc câu",
       explanation: "Việc xác định ngữ cảnh và trạng từ thời gian giúp loại trừ ngay các phương án sai."
+    },
+    {
+      question: "Dấu hiệu nào sau đây giúp loại trừ nhanh các phương án sai trong câu kiểm tra ngữ pháp?",
+      options: [
+        "Sự hòa hợp giữa thì của mệnh đề chính và mệnh đề phụ",
+        "Độ dài của từng phương án trắc nghiệm",
+        "Thứ tự bảng chữ cái của đáp án A, B, C, D",
+        "Các từ không xuất hiện trong từ điển"
+      ],
+      answer: "Sự hòa hợp giữa thì của mệnh đề chính và mệnh đề phụ",
+      explanation: "Quy tắc hòa hợp thì luôn là căn cứ khoa học chính xác nhất để loại trừ đáp án không tương thích."
     }
   ];
+}
+
+/* ── Randomized Quiz Generator: shuffles pool questions & option choices A/B/C/D ── */
+function getRandomQuizForLesson(lesson, miniQuizzes, count = 3) {
+  let pool = [];
+  if (miniQuizzes && miniQuizzes.length > 0) {
+    for (const mq of miniQuizzes) {
+      if (mq.questionsJson) {
+        try {
+          const parsed = JSON.parse(mq.questionsJson);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            pool.push(...parsed);
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
+  // Always supplement with fallback pool to ensure at least 3 randomized questions
+  const fallback = getQuestionPoolForLesson(lesson) || [];
+  pool.push(...fallback);
+
+  // Deduplicate by question text
+  const seen = new Set();
+  const uniquePool = pool.filter(q => {
+    if (!q || !q.question) return false;
+    const key = q.question.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Shuffle question pool and select count questions (default 3)
+  const targetCount = Math.min(count, uniquePool.length);
+  const selected = shuffleArray(uniquePool).slice(0, targetCount);
+
+  // Shuffle options for each question so correct answer position is randomized
+  return selected.map(q => {
+    if (!q.options || q.options.length <= 1) return q;
+    return {
+      ...q,
+      options: shuffleArray(q.options)
+    };
+  });
 }
 
 /* ── Lesson content panel with Sequential Progression ── */
@@ -630,7 +917,9 @@ function LessonContentPanel({
   onProgressUpdated,
   onNextLesson,
   hasNextLesson,
+  canTakeTopicTest,
 }) {
+  const [quizQuestions, setQuizQuestions] = useState(() => getRandomQuizForLesson(lesson, miniQuizzes));
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
@@ -638,27 +927,42 @@ function LessonContentPanel({
   const [quizPassed, setQuizPassed] = useState(false);
 
   useEffect(() => {
-    // Reset quiz state when switching lesson
+    // Reset quiz state and draw fresh randomized questions when switching lesson
+    setQuizQuestions(getRandomQuizForLesson(lesson, miniQuizzes));
     setQuizAnswers({});
     setQuizSubmitted(false);
     setQuizScorePct(null);
     setQuizPassed(false);
   }, [lesson?.id]);
 
-  const parsedQ = getQuestionsForLesson(lesson, miniQuizzes);
+  const handleRefreshQuiz = () => {
+    setQuizQuestions(getRandomQuizForLesson(lesson, miniQuizzes));
+    setQuizAnswers({});
+    setQuizSubmitted(false);
+    setQuizScorePct(null);
+    setQuizPassed(false);
+  };
+
   const letters = ['A', 'B', 'C', 'D'];
 
   const handleQuizSubmit = async () => {
-    if (Object.keys(quizAnswers).length < parsedQ.length) return;
+    if (Object.keys(quizAnswers).length < quizQuestions.length) return;
     setSubmittingQuiz(true);
     let correct = 0;
-    parsedQ.forEach((q, idx) => {
+    quizQuestions.forEach((q, idx) => {
       if (quizAnswers[idx] === q.answer) correct++;
     });
-    const score = Math.round((correct / parsedQ.length) * 100);
-    // Passing rule: For 2-3 questions: at least 2 correct answers (>= 66%).
+    const score = Math.round((correct / quizQuestions.length) * 100);
+    // Passing rule:
+    // For 1 question: at least 1 correct answer (100%).
+    // For 2-3 questions: at least 2 correct answers (>= 66%).
     // For > 3 questions: score >= 80%.
-    const isPassed = parsedQ.length <= 3 ? (correct >= 2) : (score >= 80);
+    const minRequired = quizQuestions.length <= 1
+      ? 1
+      : quizQuestions.length <= 3
+      ? 2
+      : Math.ceil(quizQuestions.length * 0.8);
+    const isPassed = correct >= minRequired;
     setQuizScorePct(score);
     setQuizPassed(isPassed);
     setQuizSubmitted(true);
@@ -767,12 +1071,35 @@ function LessonContentPanel({
       )}
 
       {/* Mini Quiz */}
-      {parsedQ.length > 0 && (
+      {/* Mini Quiz */}
+      {quizQuestions.length > 0 && (
         <section style={{ marginTop: 32 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, paddingBottom: 6, borderBottom: '1px solid #e5e7eb' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>
-              3. Kiểm tra nhanh (Mini Quiz - {parsedQ.length} câu)
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 }}>
+                3. Kiểm tra nhanh (Mini Quiz - {quizQuestions.length} câu ngẫu nhiên)
+              </h2>
+              <button
+                type="button"
+                onClick={handleRefreshQuiz}
+                title="Đổi bộ câu hỏi và xáo trộn phương án ngẫu nhiên"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  color: '#475569',
+                  fontFamily: FONT,
+                }}
+              >
+                <Shuffle size={11} /> Đổi câu hỏi
+              </button>
+            </div>
             {quizSubmitted && quizScorePct !== null && (
               <span style={{ fontSize: 13, fontWeight: 700, color: quizPassed ? '#15803d' : '#b45309' }}>
                 Kết quả: {quizScorePct}% ({quizPassed ? 'Đạt' : 'Chưa đạt'})
@@ -780,7 +1107,7 @@ function LessonContentPanel({
             )}
           </div>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            Hoàn thành đúng tối thiểu 2 câu quiz để hệ thống đánh dấu đã học và mở khóa bài học tiếp theo trong Topic.
+            Hoàn thành đúng tối thiểu {quizQuestions.length <= 1 ? '1 câu' : `${Math.min(2, quizQuestions.length)} câu`} quiz để hệ thống đánh dấu đã học và mở khóa bài học tiếp theo trong Topic. Các câu hỏi và đáp án được ngẫu nhiên mỗi lần luyện tập.
           </p>
 
           {/* Feedback banner after submitting quiz */}
@@ -798,18 +1125,18 @@ function LessonContentPanel({
                 {quizPassed ? <CheckCircle size={16} color="#16a34a" /> : <AlertTriangle size={16} color="#dc2626" />}
                 {quizPassed
                   ? `Chúc mừng! Bạn đã đạt quiz (${quizScorePct}%) và hoàn thành bài học!`
-                  : `Chưa đạt yêu cầu (${quizScorePct}%). Bạn cần trả lời đúng tối thiểu 2 câu để hoàn thành bài học.`}
+                  : `Chưa đạt yêu cầu (${quizScorePct}%). Bạn cần trả lời đúng tối thiểu ${quizQuestions.length <= 1 ? '1 câu' : `${Math.min(2, quizQuestions.length)} câu`} để hoàn thành bài học.`}
               </div>
               <div style={{ fontSize: 12.5, color: quizPassed ? '#15803d' : '#b91c1c', marginTop: 4, lineHeight: 1.4 }}>
                 {quizPassed
                   ? 'Bài học đã được hệ thống ghi nhận hoàn thành. Bài học tiếp theo đã được mở khóa!'
-                  : 'Vui lòng xem lại phần lý thuyết cốt lõi ở trên và bấm "Làm lại Quiz" để vượt qua bài học.'}
+                  : 'Vui lòng xem lại phần lý thuyết cốt lõi ở trên và bấm "Làm lại Quiz (Đổi câu hỏi mới)" để vượt qua bài học.'}
               </div>
             </div>
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {parsedQ.map((q, qIdx) => {
+            {quizQuestions.map((q, qIdx) => {
               const sel = quizAnswers[qIdx];
               const isCorr = sel === q.answer;
               return (
@@ -877,7 +1204,7 @@ function LessonContentPanel({
             {!quizSubmitted ? (
               <button
                 onClick={handleQuizSubmit}
-                disabled={submittingQuiz || Object.keys(quizAnswers).length < parsedQ.length}
+                disabled={submittingQuiz || Object.keys(quizAnswers).length < quizQuestions.length}
                 style={{
                   padding: '9px 20px',
                   background: '#1f2937',
@@ -886,7 +1213,7 @@ function LessonContentPanel({
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: 'pointer',
-                  opacity: Object.keys(quizAnswers).length < parsedQ.length ? 0.5 : 1,
+                  opacity: Object.keys(quizAnswers).length < quizQuestions.length ? 0.5 : 1,
                   fontFamily: FONT,
                 }}
               >
@@ -895,7 +1222,7 @@ function LessonContentPanel({
             ) : (
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
-                  onClick={() => { setQuizAnswers({}); setQuizSubmitted(false); setQuizScorePct(null); setQuizPassed(false); }}
+                  onClick={handleRefreshQuiz}
                   style={{
                     padding: '8px 16px',
                     background: '#fff',
@@ -909,7 +1236,7 @@ function LessonContentPanel({
                     fontFamily: FONT,
                   }}
                 >
-                  <RotateCcw size={12} /> Làm lại Quiz
+                  <RotateCcw size={12} /> Làm lại Quiz (Đổi câu hỏi mới)
                 </button>
                 {hasNextLesson && (lessonProgress?.isCompleted || quizPassed) && (
                   <button
@@ -941,29 +1268,43 @@ function LessonContentPanel({
       {activeSkillNode && (
         <div style={{ marginTop: 44, paddingTop: 20, borderTop: '1px solid #e5e7eb' }}>
           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '16px 20px', borderRadius: 4 }}>
-            <h4 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>
-              Đã hoàn thành các bài học trong Topic "{activeSkillNode.skillName}"?
-            </h4>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: 0 }}>
+                Đã hoàn thành các bài học trong Topic "{activeSkillNode.skillName}"?
+              </h4>
+              {!canTakeTopicTest && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', padding: '2px 8px', borderRadius: 3, fontWeight: 600 }}>
+                  <Lock size={11} /> Chưa mở khóa bài kiểm tra
+                </span>
+              )}
+            </div>
             <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12, lineHeight: 1.5 }}>
-              Làm bài kiểm tra Topic để đánh giá độ thuần thục. Đạt từ 80% sẽ mở khóa Topic tiếp theo trong lộ trình học!
+              {canTakeTopicTest
+                ? 'Làm bài kiểm tra Topic để đánh giá độ thuần thục. Đạt từ 80% sẽ mở khóa Topic tiếp theo trong lộ trình học!'
+                : 'Bạn cần hoàn thành tất cả các bài học chính trong Topic này trước khi có thể làm bài kiểm tra đánh giá năng lực.'}
             </p>
             <button
-              onClick={() => onOpenTest(activeSkillNode)}
+              disabled={!canTakeTopicTest}
+              onClick={() => canTakeTopicTest && onOpenTest(activeSkillNode)}
               style={{
                 padding: '10px 22px',
-                background: '#1f2937',
+                background: canTakeTopicTest ? '#1f2937' : '#94a3b8',
                 color: '#fff',
                 border: 'none',
                 fontSize: 13,
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: canTakeTopicTest ? 'pointer' : 'not-allowed',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
                 fontFamily: FONT,
+                opacity: canTakeTopicTest ? 1 : 0.75,
               }}
             >
-              <Award size={14} /> Làm bài kiểm tra Topic: {activeSkillNode.skillName}
+              {canTakeTopicTest ? <Award size={14} /> : <Lock size={14} />}
+              {canTakeTopicTest
+                ? `Làm bài kiểm tra Topic: ${activeSkillNode.skillName}`
+                : `Làm bài kiểm tra Topic: ${activeSkillNode.skillName} (Khóa)`}
             </button>
           </div>
         </div>
@@ -973,7 +1314,7 @@ function LessonContentPanel({
 }
 
 /* ── Topic Test Modal (Random questions + Topic Test Attempt History) ── */
-function TopicTestModal({ node, onClose, userId, fetchStudyPath }) {
+function TopicTestModal({ node, onClose, userId, fetchStudyPath, canTakeTest = true }) {
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [activeTest, setActiveTest] = useState(null);
@@ -1009,6 +1350,7 @@ function TopicTestModal({ node, onClose, userId, fetchStudyPath }) {
   }, [activeTest, result]);
 
   const handleStart = async () => {
+    if (!canTakeTest) return;
     try {
       const test = await assessmentService.generateTopicTest(
         node.skillId,
@@ -1040,8 +1382,17 @@ function TopicTestModal({ node, onClose, userId, fetchStudyPath }) {
         // Unlock next skill / topic
         await adaptiveService.unlockNextSkill(userId, ENGLISH_SUBJECT_ID, node.skillId, node.skillId);
       } else {
-        // Mark remedial in adaptive service
-        await adaptiveService.handleTopicTestFailed(userId, ENGLISH_SUBJECT_ID, node.skillId, res.accuracyPercentage);
+        // Extract weak lessons from assessment result to adaptively reorder lessons
+        const weakLessonIds = res.weakLessons ? res.weakLessons.map(w => w.lessonId).filter(Boolean) : [];
+        const weakLessonTitles = res.weakLessons ? res.weakLessons.map(w => w.lessonTitle).filter(Boolean) : [];
+        await adaptiveService.handleTopicTestFailed(
+          userId,
+          ENGLISH_SUBJECT_ID,
+          node.skillId,
+          res.accuracyPercentage,
+          weakLessonIds,
+          weakLessonTitles
+        );
       }
       fetchStudyPath();
       loadHistory();
@@ -1168,7 +1519,7 @@ function TopicTestModal({ node, onClose, userId, fetchStudyPath }) {
           </div>
         )}
 
-        {/* Test Result Screen */}
+        {/* Test Result Screen with Weak Lessons Diagnostics */}
         {result && (
           <div style={{ textAlign: 'center', padding: '16px 0' }}>
             <div style={{ fontSize: 48, marginBottom: 8, lineHeight: 1, color: result.isPassed ? '#16a34a' : '#d97706' }}>
@@ -1179,27 +1530,51 @@ function TopicTestModal({ node, onClose, userId, fetchStudyPath }) {
                 ? 'Chúc mừng! Bạn đã đạt yêu cầu và mở khóa Topic tiếp theo'
                 : 'Chưa đạt yêu cầu (Cần từ 80%)'}
             </h4>
-            <p style={{ fontSize: 14, color: '#4b5563', marginBottom: 8 }}>
+            <p style={{ fontSize: 14, color: '#4b5563', marginBottom: 12 }}>
               Điểm số: <strong style={{ color: '#111827' }}>{result.score}/{result.totalQuestions}</strong> câu đúng ({result.accuracyPercentage}%)
             </p>
+
             {!result.isPassed && (
-              <p style={{ fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', padding: '10px 14px', maxWidth: 520, margin: '0 auto 20px', textAlign: 'left', lineHeight: 1.5 }}>
-                ⚠️ <strong>Cần ôn tập bổ sung:</strong> Hệ thống đã tự động thêm bài học ôn tập vào chủ đề này để giúp bạn củng cố kiến thức trước khi thi lại.
-              </p>
+              <div style={{ maxWidth: 540, margin: '0 auto 20px', textAlign: 'left' }}>
+                <div style={{ fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', padding: '12px 14px', borderRadius: 4, lineHeight: 1.5, marginBottom: 12 }}>
+                  ⚠️ <strong>Chưa đạt chuẩn (Cần ≥ 80%):</strong>
+                  <p style={{ margin: '6px 0 0', fontSize: 12.5, color: '#92400e' }}>
+                    Hệ thống đã tự động sắp xếp lại lộ trình học của chủ đề này: các bài học bạn chưa vững được đưa lên đầu để củng cố trước, kèm bài tập ôn tập bổ sung.
+                  </p>
+                </div>
+
+                {result.weakLessons && result.weakLessons.length > 0 && (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 4, padding: '10px 14px' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#991b1b', textTransform: 'uppercase', marginBottom: 6 }}>
+                      Các bài học cần củng cố lại:
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: '#7f1d1d' }}>
+                      {result.weakLessons.map((wl, wIdx) => (
+                        <li key={wIdx} style={{ marginBottom: 4 }}>
+                          <strong>{wl.lessonTitle || 'Bài học liên quan'}</strong> — làm sai {wl.wrongCount}/{wl.totalQuestions} câu
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             )}
+
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16 }}>
               <button
                 onClick={handleStart}
+                disabled={!canTakeTest}
                 style={{
                   padding: '8px 18px',
                   border: '1px solid #d1d5db',
                   background: '#fff',
                   fontSize: 13,
-                  cursor: 'pointer',
+                  cursor: canTakeTest ? 'pointer' : 'not-allowed',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
                   fontFamily: FONT,
+                  opacity: canTakeTest ? 1 : 0.6,
                 }}
               >
                 <RotateCcw size={12} /> Làm lại bài kiểm tra Topic
@@ -1235,6 +1610,15 @@ function TopicTestModal({ node, onClose, userId, fetchStudyPath }) {
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Đạt tối thiểu 80% (≥ 4/5 câu)</div>
               </div>
             </div>
+
+            {!canTakeTest && (
+              <div style={{ marginBottom: 20, padding: '12px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Lock size={16} color="#d97706" style={{ flexShrink: 0 }} />
+                <div style={{ fontSize: 12.5, color: '#b45309', lineHeight: 1.45 }}>
+                  <strong>Tính năng kiểm tra đang khóa:</strong> Bạn chưa hoàn thành tất cả các bài học chính trong Topic này. Vui lòng học xong các bài học để mở khóa bài kiểm tra Topic!
+                </div>
+              </div>
+            )}
 
             {/* TOPIC TEST HISTORY TABLE */}
             <div style={{ marginBottom: 24 }}>
@@ -1299,22 +1683,25 @@ function TopicTestModal({ node, onClose, userId, fetchStudyPath }) {
                 Đóng
               </button>
               <button
+                disabled={!canTakeTest}
                 onClick={handleStart}
                 style={{
                   padding: '8px 22px',
-                  background: '#1f2937',
+                  background: canTakeTest ? '#1f2937' : '#94a3b8',
                   color: '#fff',
                   border: 'none',
                   fontSize: 13,
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: canTakeTest ? 'pointer' : 'not-allowed',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
                   fontFamily: FONT,
+                  opacity: canTakeTest ? 1 : 0.7,
                 }}
               >
-                <Play size={13} /> Bắt đầu kiểm tra Topic
+                {canTakeTest ? <Play size={13} /> : <Lock size={13} />}
+                {canTakeTest ? 'Bắt đầu kiểm tra Topic' : 'Chưa mở khóa kiểm tra'}
               </button>
             </div>
           </div>
@@ -1927,6 +2314,21 @@ export default function StudyPathRoadmapPage() {
   const grammarNodes = nodes.filter(n => (n.moduleName && n.moduleName.includes('Ngữ pháp')) || n.sequenceOrder <= 4);
   const vocabNodes = nodes.filter(n => (n.moduleName && n.moduleName.includes('Từ vựng')) || n.sequenceOrder > 4);
 
+  // Check whether all regular lessons in a topic/node are finished so test can be unlocked
+  const isNodeTestUnlocked = (node) => {
+    if (!node) return false;
+    if (node.status === 'COMPLETED') return true;
+    const topicKey = node.topicId || node.skillId;
+    const lessons = lessonsByTopic[topicKey] || [];
+    const progressMap = progressByTopic[topicKey] || {};
+    const regularLessons = lessons.filter(l => !l.isRemedial);
+    if (regularLessons.length === 0) return true;
+    return regularLessons.every(l => {
+      const p = progressMap[l.id];
+      return p && p.isCompleted && p.quizCompleted;
+    });
+  };
+
   // Check next lesson existence
   let hasNextLesson = false;
   if (activeSkillNode && activeLessonId) {
@@ -2085,6 +2487,7 @@ export default function StudyPathRoadmapPage() {
             onProgressUpdated={handleProgressUpdated}
             onNextLesson={handleNextLesson}
             hasNextLesson={hasNextLesson}
+            canTakeTopicTest={activeSkillNode ? isNodeTestUnlocked(activeSkillNode) : false}
           />
         ) : (
           <OverviewPanel
@@ -2102,6 +2505,7 @@ export default function StudyPathRoadmapPage() {
           onClose={() => setTopicTestNode(null)}
           userId={user.userId}
           fetchStudyPath={fetchStudyPath}
+          canTakeTest={topicTestNode ? isNodeTestUnlocked(topicTestNode) : false}
         />
       )}
 

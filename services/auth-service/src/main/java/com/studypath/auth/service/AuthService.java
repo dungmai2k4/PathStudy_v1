@@ -132,7 +132,13 @@ public class AuthService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         List<String> roles = user.getRoles().stream().map(RoleEntity::getName).collect(Collectors.toList());
-        boolean isPro = isUserPro(user.getId());
+        List<UserSubscriptionEntity> activeSubs = userSubscriptionRepository.findActiveSubscriptions(user.getId(), Instant.now());
+        boolean isPro = !activeSubs.isEmpty();
+        List<String> activePlanCodes = activeSubs.stream()
+                .map(s -> s.getPlan() != null ? s.getPlan().getCode() : null)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
 
         StudentProfileEntity profile = studentProfileRepository.findByUserId(user.getId()).orElse(null);
 
@@ -146,6 +152,7 @@ public class AuthService {
                 .createdAt(account.getCreatedAt())
                 .roles(roles)
                 .isPro(isPro)
+                .activePlanCodes(activePlanCodes)
                 .build();
     }
 

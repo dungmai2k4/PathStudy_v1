@@ -32,4 +32,7 @@ public class UserSubscriptionEntity extends BaseEntity {
     @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
     private String status = "ACTIVE";
+
+    @Column(name = "payment_reference", length = 100)
+    private String paymentReference;
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { BookOpen, Sparkles, User, LogOut, Award, ShieldCheck, FolderKanban } from 'lucide-react';
+import { BookOpen, Sparkles, User, LogOut, Award, ShieldCheck, FolderKanban, HelpCircle, Crown } from 'lucide-react';
 
 export default function Navbar() {
   const { user, isPro, logout } = useAuth();
@@ -12,43 +12,76 @@ export default function Navbar() {
   const isAdmin = userRoles.includes('ADMIN');
   const isManager = userRoles.includes('MANAGER');
 
-  const navLinks = [
-    { label: 'Tổng quan', to: '/', isActive: pathname === '/' },
-    { label: 'Lộ trình học', to: '/study-path/english', isActive: pathname.startsWith('/study-path') },
-    { label: 'Môn học', to: '/subjects', isActive: pathname.startsWith('/subjects') },
-    { label: 'Hồ sơ học tập', to: '/profile', isActive: pathname.startsWith('/profile') },
-  ];
+  // Format role label gọn hơn cho phần hiển thị dưới username
+  const roleLabel = isPro ? 'PRO MEMBER' : userRoles.join(', ');
 
-  if (!isAdmin && !isManager) {
-    navLinks.push({
-      label: 'Gói Pro',
-      to: '/subscription',
-      isActive: pathname.startsWith('/subscription'),
-      icon: Sparkles,
-      iconClass: 'text-amber-500',
-    });
-  }
+  let navLinks = [];
+  let homeUrl = '/';
 
-  // Manager navigation
-  if (isManager || isAdmin) {
-    navLinks.push({
-      label: 'Quản lý học thuật',
-      to: '/manager',
-      isActive: pathname.startsWith('/manager'),
-      icon: FolderKanban,
-      iconClass: 'text-indigo-600',
-    });
-  }
-
-  // Admin navigation
   if (isAdmin) {
-    navLinks.push({
-      label: 'Quản trị hệ thống',
-      to: '/admin/users',
-      isActive: pathname.startsWith('/admin'),
-      icon: ShieldCheck,
-      iconClass: 'text-rose-600',
-    });
+    homeUrl = '/admin/users';
+    navLinks = [
+      {
+        label: 'Quản trị hệ thống',
+        to: '/admin/users',
+        isActive: pathname.startsWith('/admin'),
+        icon: ShieldCheck,
+        iconClass: 'text-rose-600',
+      },
+    ];
+  } else if (isManager) {
+    homeUrl = '/manager';
+    navLinks = [
+      {
+        label: 'Tổng quan học thuật',
+        to: '/manager',
+        isActive: pathname === '/manager',
+        icon: FolderKanban,
+        iconClass: 'text-indigo-600',
+      },
+      {
+        label: 'Nội dung học thuật',
+        to: '/manager/content',
+        isActive: pathname.startsWith('/manager/content'),
+        icon: BookOpen,
+        iconClass: 'text-indigo-600',
+      },
+      {
+        label: 'Ngân hàng câu hỏi',
+        to: '/manager/questions',
+        isActive: pathname.startsWith('/manager/questions'),
+        icon: HelpCircle,
+        iconClass: 'text-indigo-600',
+      },
+    ];
+  } else {
+    homeUrl = '/';
+    navLinks = [
+      { label: 'Tổng quan', to: '/', isActive: pathname === '/' },
+      { label: 'Lộ trình học', to: '/study-path/english', isActive: pathname.startsWith('/study-path') },
+      { label: 'Môn học', to: '/subjects', isActive: pathname.startsWith('/subjects') },
+      { label: 'Hồ sơ học tập', to: '/profile', isActive: pathname.startsWith('/profile') },
+    ];
+
+    // Luôn hiển thị link subscription cho student; đổi label khi đã Pro
+    navLinks.push(
+      isPro
+        ? {
+            label: 'Pro',
+            to: '/subscription',
+            isActive: pathname.startsWith('/subscription'),
+            icon: Crown,
+            iconClass: 'text-amber-500',
+            isProBadge: true, // dùng để style riêng
+          }
+        : {
+            label: 'Gói Pro',
+            to: '/subscription',
+            isActive: pathname.startsWith('/subscription'),
+            icon: Sparkles,
+            iconClass: 'text-amber-500',
+          }
+    );
   }
 
   return (
@@ -56,7 +89,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2.5 font-bold text-lg text-indigo-700 tracking-tight">
+            <Link to={homeUrl} className="flex items-center gap-2.5 font-bold text-lg text-indigo-700 tracking-tight">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
                 <BookOpen className="w-4 h-4" />
               </div>
@@ -66,6 +99,26 @@ export default function Navbar() {
             <nav className="hidden md:flex items-center gap-1">
               {navLinks.map((item) => {
                 const Icon = item.icon;
+                // Nav item "Pro" (khi đã đăng ký) có style amber đặc biệt
+                if (item.isProBadge) {
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className={`relative px-3.5 py-2 rounded-md text-sm font-semibold transition flex items-center gap-1.5 ${
+                        item.isActive
+                          ? 'text-amber-600 bg-amber-50'
+                          : 'text-amber-500 hover:text-amber-600 hover:bg-amber-50/70'
+                      }`}
+                    >
+                      {Icon && <Icon className="w-4 h-4 text-amber-500" />}
+                      <span>{item.label}</span>
+                      {item.isActive && (
+                        <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-amber-500 rounded-full" />
+                      )}
+                    </Link>
+                  );
+                }
                 return (
                   <Link
                     key={item.to}
@@ -99,9 +152,29 @@ export default function Navbar() {
                 <span>CONTENT MANAGER</span>
               </div>
             ) : isPro ? (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                <Award className="w-3.5 h-3.5 text-amber-600" />
-                <span>PRO STUDENT</span>
+              /* Badge PRO nổi bật với gradient và shimmer animation */
+              <div
+                className="relative hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold overflow-hidden"
+                style={{
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)',
+                  color: '#fff',
+                  boxShadow: '0 2px 8px rgba(245,158,11,0.4)',
+                }}
+              >
+                {/* Shimmer overlay */}
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background:
+                      'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'navbar-shimmer 2.4s linear infinite',
+                  }}
+                />
+                <Crown className="w-3.5 h-3.5 relative z-10" style={{ color: '#fef3c7' }} />
+                <span className="relative z-10 tracking-wide">PRO</span>
               </div>
             ) : (
               <Link
@@ -115,13 +188,24 @@ export default function Navbar() {
 
             <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600">
-                  <User className="w-4 h-4" />
+                {/* Avatar – viền vàng nếu là Pro */}
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                    isPro
+                      ? 'bg-amber-100 border-2 border-amber-400 text-amber-700'
+                      : 'bg-slate-100 border border-slate-200 text-slate-600'
+                  }`}
+                >
+                  {isPro ? (
+                    <Crown className="w-4 h-4" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
                 </div>
                 <div className="hidden sm:block text-left">
                   <div className="text-xs font-semibold text-slate-800 leading-tight">{user?.username}</div>
-                  <div className="text-[11px] text-slate-500">
-                    {user?.roles?.join(', ')}
+                  <div className={`text-[11px] font-medium leading-tight ${isPro ? 'text-amber-600' : 'text-slate-500'}`}>
+                    {roleLabel}
                   </div>
                 </div>
               </div>
@@ -137,6 +221,14 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* Keyframe for shimmer animation – injected once via a style tag */}
+      <style>{`
+        @keyframes navbar-shimmer {
+          0%   { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+      `}</style>
     </header>
   );
 }

@@ -23,27 +23,37 @@ public class QuestionController {
     public ApiResponse<List<QuestionDto>> getQuestions(
             @RequestParam(name = "questionBankId", required = false) UUID questionBankId,
             @RequestParam(name = "skillId", required = false) UUID skillId,
-            @RequestParam(name = "difficulty", required = false) String difficulty
+            @RequestParam(name = "difficulty", required = false) String difficulty,
+            @RequestParam(name = "includeAnswer", defaultValue = "false") boolean includeAnswer
     ) {
         return ApiResponse.ok("Lấy danh sách câu hỏi thành công",
-                questionService.getQuestions(questionBankId, skillId, difficulty));
+                questionService.getQuestions(questionBankId, skillId, difficulty, includeAnswer));
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<QuestionDto> getQuestionById(@PathVariable("id") UUID id) {
-        return ApiResponse.ok("Lấy chi tiết câu hỏi thành công", questionService.getQuestionById(id, false));
+    public ApiResponse<QuestionDto> getQuestionById(
+            @PathVariable("id") UUID id,
+            @RequestParam(name = "includeAnswer", defaultValue = "false") boolean includeAnswer
+    ) {
+        return ApiResponse.ok("Lấy chi tiết câu hỏi thành công", questionService.getQuestionById(id, includeAnswer));
     }
 
     @GetMapping("/by-topic/{topicId}")
-    public ApiResponse<List<QuestionDto>> getQuestionsByTopicId(@PathVariable("topicId") UUID topicId) {
+    public ApiResponse<List<QuestionDto>> getQuestionsByTopicId(
+            @PathVariable("topicId") UUID topicId,
+            @RequestParam(name = "includeAnswer", defaultValue = "false") boolean includeAnswer
+    ) {
         return ApiResponse.ok("Lấy danh sách câu hỏi theo topic thành công",
-                questionService.getQuestionsByTopicId(topicId));
+                questionService.getQuestionsByTopicId(topicId, includeAnswer));
     }
 
     @GetMapping("/by-subject/{subjectId}")
-    public ApiResponse<List<QuestionDto>> getQuestionsBySubjectId(@PathVariable("subjectId") UUID subjectId) {
+    public ApiResponse<List<QuestionDto>> getQuestionsBySubjectId(
+            @PathVariable("subjectId") UUID subjectId,
+            @RequestParam(name = "includeAnswer", defaultValue = "false") boolean includeAnswer
+    ) {
         return ApiResponse.ok("Lấy danh sách câu hỏi theo môn học thành công",
-                questionService.getQuestionsBySubjectId(subjectId));
+                questionService.getQuestionsBySubjectId(subjectId, includeAnswer));
     }
 
     @PostMapping("/{id}/check-answer")

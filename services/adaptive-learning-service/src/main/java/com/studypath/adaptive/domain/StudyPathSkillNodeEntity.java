@@ -71,6 +71,9 @@ public class StudyPathSkillNodeEntity extends BaseEntity {
     @Builder.Default
     private Boolean milestoneTestPassed = false;
 
+    @Column(name = "lesson_order_json", columnDefinition = "TEXT")
+    private String lessonOrderJson;
+
     @Column(name = "unlocked_at")
     private Instant unlockedAt;
 

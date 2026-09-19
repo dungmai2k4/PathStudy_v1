@@ -49,7 +49,7 @@ export default function App() {
             </Route>
 
             {/* Manager Protected Routes */}
-            <Route element={<RoleProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
+            <Route element={<RoleProtectedRoute allowedRoles={['MANAGER']} />}>
               <Route path="manager" element={<ManagerDashboardPage />} />
               <Route path="manager/content" element={<SubjectManagerPage />} />
               <Route path="manager/questions" element={<QuestionBankManagerPage />} />

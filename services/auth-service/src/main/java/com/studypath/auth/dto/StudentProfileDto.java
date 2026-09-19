@@ -1,5 +1,6 @@
 package com.studypath.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.util.List;
@@ -17,5 +18,6 @@ public class StudentProfileDto {
     private Integer grade;
     private String className;
     private List<String> roles;
+    @JsonProperty("isPro")
     private boolean isPro;
 }

@@ -38,8 +38,22 @@ public class SubscriptionService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<String> getActivePlanCodes(UUID userId) {
+        return userSubscriptionRepository.findActiveSubscriptions(userId, Instant.now()).stream()
+                .map(s -> s.getPlan() != null ? s.getPlan().getCode() : null)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public UserSubscriptionEntity subscribe(UUID userId, String planCode) {
+        return subscribe(userId, planCode, null);
+    }
+
+    @Transactional
+    public UserSubscriptionEntity subscribe(UUID userId, String planCode, String paymentReference) {
         SubscriptionPlanEntity plan = planRepository.findByCode(planCode)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Subscription plan not found: " + planCode));
 
@@ -62,6 +76,7 @@ public class SubscriptionService {
                 .startDate(startDate)
                 .endDate(endDate)
                 .status("ACTIVE")
+                .paymentReference(paymentReference)
                 .build();
 
         return userSubscriptionRepository.save(subscription);

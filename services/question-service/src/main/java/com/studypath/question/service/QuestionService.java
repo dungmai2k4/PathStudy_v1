@@ -82,6 +82,11 @@ public class QuestionService {
     }
 
     @Transactional(readOnly = true)
+    public List<QuestionDto> getQuestions(UUID questionBankId, UUID skillId, String difficulty, boolean includeAnswer) {
+        return fetchQuestions(questionBankId, skillId, difficulty, includeAnswer);
+    }
+
+    @Transactional(readOnly = true)
     public List<QuestionDto> getQuestionsForManager(UUID questionBankId, UUID skillId, String difficulty) {
         return fetchQuestions(questionBankId, skillId, difficulty, true);
     }
@@ -89,38 +94,56 @@ public class QuestionService {
     private List<QuestionDto> fetchQuestions(UUID questionBankId, UUID skillId, String difficulty, boolean includeAnswer) {
         List<QuestionEntity> questions;
 
-        if (skillId != null && difficulty != null && !difficulty.isBlank()) {
-            questions = questionRepository.findBySkillIdAndDifficulty(skillId, difficulty);
-        } else if (skillId != null) {
-            questions = questionRepository.findBySkillId(skillId);
+        boolean hasDiff = difficulty != null && !difficulty.isBlank() && !"ALL".equalsIgnoreCase(difficulty);
+
+        if (questionBankId != null && hasDiff) {
+            questions = questionRepository.findByQuestionBankIdAndDifficulty(questionBankId, difficulty.toUpperCase());
         } else if (questionBankId != null) {
             questions = questionRepository.findByQuestionBankId(questionBankId);
+        } else if (skillId != null && hasDiff) {
+            questions = questionRepository.findBySkillIdAndDifficulty(skillId, difficulty.toUpperCase());
+        } else if (skillId != null) {
+            questions = questionRepository.findBySkillId(skillId);
+        } else if (hasDiff) {
+            questions = questionRepository.findByDifficulty(difficulty.toUpperCase());
         } else {
             questions = questionRepository.findAll();
         }
 
         return questions.stream()
+                .filter(q -> skillId == null || (q.getSkillId() != null && q.getSkillId().equals(skillId)))
+                .filter(q -> !hasDiff || (q.getDifficulty() != null && q.getDifficulty().equalsIgnoreCase(difficulty)))
                 .map(q -> toQuestionDto(q, includeAnswer))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<QuestionDto> getQuestionsByTopicId(UUID topicId) {
+        return getQuestionsByTopicId(topicId, false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuestionDto> getQuestionsByTopicId(UUID topicId, boolean includeAnswer) {
         List<QuestionEntity> questions = questionRepository.findByTopicId(topicId);
         if (questions.isEmpty()) {
             questions = questionRepository.findBySkillId(topicId);
         }
         return questions.stream()
-                .map(q -> toQuestionDto(q, false))
+                .map(q -> toQuestionDto(q, includeAnswer))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<QuestionDto> getQuestionsBySubjectId(UUID subjectId) {
+        return getQuestionsBySubjectId(subjectId, false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuestionDto> getQuestionsBySubjectId(UUID subjectId, boolean includeAnswer) {
         List<QuestionBankEntity> banks = questionBankRepository.findBySubjectId(subjectId);
         return banks.stream()
                 .flatMap(b -> questionRepository.findByQuestionBankId(b.getId()).stream())
-                .map(q -> toQuestionDto(q, false))
+                .map(q -> toQuestionDto(q, includeAnswer))
                 .collect(Collectors.toList());
     }
 
@@ -138,6 +161,7 @@ public class QuestionService {
                 .skillId(request.getSkillId())
                 .moduleId(request.getModuleId())
                 .topicId(request.getTopicId())
+                .lessonId(request.getLessonId())
                 .content(request.getContent())
                 .difficulty(request.getDifficulty().toUpperCase())
                 .explanation(request.getExplanation())
@@ -241,6 +265,7 @@ public class QuestionService {
                 .topicId(entity.getTopicId() != null ? entity.getTopicId() : entity.getSkillId())
                 .moduleId(entity.getModuleId())
                 .skillId(entity.getSkillId())
+                .lessonId(entity.getLessonId())
                 .content(entity.getContent())
                 .difficulty(entity.getDifficulty())
                 .explanation(includeAnswer ? entity.getExplanation() : null)

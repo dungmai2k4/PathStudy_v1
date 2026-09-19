@@ -333,6 +333,7 @@ public class AdaptiveLearningService {
                 .remedialReason(n.getRemedialReason())
                 .milestoneTestPassed(n.getMilestoneTestPassed())
                 .lessonCount(estimateLessonCount(n.getProficiencyLevel() != null ? n.getProficiencyLevel() : "NEEDS_IMPROVEMENT"))
+                .lessonOrderJson(n.getLessonOrderJson())
                 .build()).collect(Collectors.toList());
 
         return StudyPathDto.builder()
@@ -462,7 +463,34 @@ public class AdaptiveLearningService {
 
         node.setStatus("NEEDS_REMEDIATION");
         node.setHasRemedialActive(true);
-        node.setRemedialReason("Điểm kiểm tra chủ đề đạt " + request.getScorePercentage() + "% (< 80%). Hệ thống đã tự động bổ sung bài học ôn tập chuyên sâu để củng cố kiến thức trước khi thi lại!");
+
+        if (request.getWeakLessonIds() != null && !request.getWeakLessonIds().isEmpty()) {
+            try {
+                String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(request.getWeakLessonIds());
+                node.setLessonOrderJson(json);
+            } catch (Exception e) {
+                log.error("Error serializing lessonOrderJson", e);
+            }
+
+            // Reset progress for weak lessons so student can review and re-test
+            for (UUID wId : request.getWeakLessonIds()) {
+                studentLessonProgressRepository.findByStudentIdAndLessonId(request.getStudentId(), wId)
+                        .ifPresent(p -> {
+                            p.setIsCompleted(false);
+                            p.setQuizCompleted(false);
+                            studentLessonProgressRepository.save(p);
+                        });
+            }
+        }
+
+        String reason;
+        if (request.getWeakLessonTitles() != null && !request.getWeakLessonTitles().isEmpty()) {
+            String titles = String.join(", ", request.getWeakLessonTitles());
+            reason = "Điểm kiểm tra chủ đề đạt " + request.getScorePercentage() + "% (< 80%). Bạn còn yếu ở bài: [" + titles + "]. Hệ thống đã sắp xếp lại lộ trình ưu tiên bài học này để bạn củng cố trước khi thi lại!";
+        } else {
+            reason = "Điểm kiểm tra chủ đề đạt " + request.getScorePercentage() + "% (< 80%). Hệ thống đã tự động bổ sung bài học ôn tập chuyên sâu để củng cố kiến thức trước khi thi lại!";
+        }
+        node.setRemedialReason(reason);
         studyPathSkillNodeRepository.save(node);
 
         return getMyStudyPath(request.getStudentId(), request.getSubjectId());

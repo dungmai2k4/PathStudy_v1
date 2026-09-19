@@ -1,5 +1,6 @@
 package com.studypath.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.time.Instant;
@@ -20,5 +21,7 @@ public class UserDto {
     private String status;
     private Instant createdAt;
     private List<String> roles;
+    @JsonProperty("isPro")
     private boolean isPro;
+    private List<String> activePlanCodes;
 }
