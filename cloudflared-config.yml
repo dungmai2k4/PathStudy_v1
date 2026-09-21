@@ -1,0 +1,9 @@
+tunnel: db60c3ac-e1de-4a9e-b58e-f737cfeb5511
+credentials-file: C:\Users\ADMIN\.cloudflared\db60c3ac-e1de-4a9e-b58e-f737cfeb5511.json
+
+ingress:
+  - hostname: pathstudy.id.vn
+    service: http://127.0.0.1:5173
+  - hostname: www.pathstudy.id.vn
+    service: http://127.0.0.1:5173
+  - service: http_status:404
