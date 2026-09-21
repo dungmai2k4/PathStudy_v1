@@ -24,6 +24,8 @@ public class PaymentOrderDto {
     private String accountName;
     private String qrUrl;
     private String status;
+    private String transferContent;
+    private String expectedTransferContent;
     private String transactionReference;
     private Instant paidAt;
     private Instant createdAt;

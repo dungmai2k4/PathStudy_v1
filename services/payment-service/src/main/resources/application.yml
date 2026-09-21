@@ -40,6 +40,6 @@ vietqr:
 
 payment:
   webhook:
-    secure-token: ${PAYMENT_WEBHOOK_TOKEN}
+    secure-token: ${PAYMENT_WEBHOOK_TOKEN:study_path_secure_webhook_token_2026}
   services:
-    auth-service-url: ${AUTH_SERVICE_URL}
+    auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8081}

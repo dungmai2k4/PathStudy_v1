@@ -1,5 +1,6 @@
 package com.studypath.payment.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.studypath.common.dto.ApiResponse;
 import com.studypath.common.security.UserContext;
 import com.studypath.payment.dto.*;
@@ -12,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -38,12 +40,24 @@ public class PaymentOrderController {
         return ResponseEntity.ok(ApiResponse.ok("Lấy chi tiết đơn hàng thành công", orderDto));
     }
 
+    /**
+     * Webhook nhận biến động số dư chuyển khoản thực tế.
+     * Hỗ trợ chuẩn xác:
+     * - SePay (Authorization: Apikey ... hoặc Bearer ...)
+     * - Casso (Header: secure-token)
+     * - PayOS (Header: X-API-KEY)
+     * - URL query param (?token=...)
+     * Hỗ trợ cấu trúc payload phẳng (SePay) và lồng nhau (Casso / PayOS data object).
+     */
     @PostMapping("/webhook")
     public ResponseEntity<WebhookResponse> handleWebhook(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestBody WebhookPaymentPayload payload
+            @RequestHeader(value = "X-API-KEY", required = false) String xApiKey,
+            @RequestHeader(value = "secure-token", required = false) String secureToken,
+            @RequestParam(value = "token", required = false) String queryToken,
+            @RequestBody(required = false) JsonNode payloadNode
     ) {
-        WebhookResponse response = paymentOrderService.processWebhook(authHeader, payload);
+        WebhookResponse response = paymentOrderService.processWebhook(authHeader, xApiKey, secureToken, queryToken, payloadNode);
         return ResponseEntity.ok(response);
     }
 

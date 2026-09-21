@@ -1,5 +1,7 @@
 package com.studypath.payment.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studypath.common.dto.ApiResponse;
 import com.studypath.common.exception.AppException;
 import com.studypath.common.exception.ErrorCode;
@@ -30,6 +32,7 @@ public class PaymentOrderService {
     private final PaymentOrderRepository paymentOrderRepository;
     private final VietQRHelper vietQRHelper;
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${payment.webhook.secure-token:study_path_secure_webhook_token_2026}")
     private String webhookSecureToken;
@@ -37,8 +40,8 @@ public class PaymentOrderService {
     @Value("${payment.services.auth-service-url:http://localhost:8081}")
     private String authServiceUrl;
 
-    // Pattern tìm mã đơn dạng PS + số, ví dụ PS184832
-    private static final Pattern ORDER_CODE_PATTERN = Pattern.compile("PS[0-9]{6,12}", Pattern.CASE_INSENSITIVE);
+    // Pattern nhận diện mã đơn hàng: PS184832, PS 184832, PS-184832, PS_184832
+    private static final Pattern ORDER_CODE_PATTERN = Pattern.compile("PS[\\s\\-_]?([0-9]{6,12})", Pattern.CASE_INSENSITIVE);
 
     @Transactional
     public PaymentOrderDto createOrder(UUID userId, CreateOrderRequest request) {
@@ -75,6 +78,7 @@ public class PaymentOrderService {
                 .accountNo(vietQRHelper.getAccountNo())
                 .accountName(vietQRHelper.getAccountName())
                 .qrUrl(qrUrl)
+                .transferContent(orderCode)
                 .status("PENDING")
                 .build();
 
@@ -96,25 +100,48 @@ public class PaymentOrderService {
         return mapToDto(order);
     }
 
+    /**
+     * Xử lý Webhook biến động số dư thực tế từ ngân hàng / bên thứ 3 (SePay, Casso, PayOS).
+     */
     @Transactional
-    public WebhookResponse processWebhook(String authHeader, WebhookPaymentPayload payload) {
-        log.info("Nhận webhook biến động số dư: {}", payload);
+    public WebhookResponse processWebhook(
+            String authHeader,
+            String xApiKey,
+            String secureToken,
+            String queryToken,
+            JsonNode payloadNode
+    ) {
+        log.info("Nhận Webhook từ cổng thanh toán. Headers: Auth={}, X-API-KEY={}, secure-token={}, queryToken={}",
+                authHeader != null ? "[CÓ]" : "[KHÔNG]",
+                xApiKey != null ? "[CÓ]" : "[KHÔNG]",
+                secureToken != null ? "[CÓ]" : "[KHÔNG]",
+                queryToken != null ? "[CÓ]" : "[KHÔNG]");
 
-        // 1. Kiểm tra xác thực Webhook Token nếu có cấu hình
-        if (webhookSecureToken != null && !webhookSecureToken.isBlank()) {
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                String token = authHeader.substring(7);
-                if (!webhookSecureToken.equals(token)) {
-                    log.warn("Webhook token không hợp lệ!");
-                    return WebhookResponse.builder()
-                            .success(false)
-                            .message("Unauthorized webhook token")
-                            .build();
-                }
-            }
+        // 1. Xác thực Webhook Token bảo mật
+        if (!isValidWebhookToken(authHeader, xApiKey, secureToken, queryToken)) {
+            log.warn("Cảnh báo: Webhook token không hợp lệ hoặc bị thiếu!");
+            return WebhookResponse.builder()
+                    .success(false)
+                    .message("Unauthorized: Webhook token không hợp lệ")
+                    .build();
         }
 
-        // 2. Bỏ qua nếu giao dịch tiền ra
+        // 2. Parse payload đa định dạng (SePay phẳng, Casso mảng data, PayOS đối tượng data)
+        WebhookPaymentPayload payload = parsePayload(payloadNode);
+        log.info("Dữ liệu webhook đã chuẩn hóa: Gateway={}, STK={}, Số tiền={}, Nội dung='{}', Ref={}",
+                payload.getGateway(), payload.getAccountNumber(), payload.getTransferAmount(),
+                payload.getContent(), payload.getReferenceCode());
+
+        // 3. Kiểm tra nếu là sự kiện Ping / Test Webhook từ dashboard nhà cung cấp
+        if (isPingOrTest(payloadNode, payload)) {
+            log.info("Xử lý thành công Webhook Ping / Test connection từ nhà cung cấp.");
+            return WebhookResponse.builder()
+                    .success(true)
+                    .message("Webhook connection test / ping received successfully")
+                    .build();
+        }
+
+        // 4. Bỏ qua giao dịch tiền ra (transferType: out)
         if ("out".equalsIgnoreCase(payload.getTransferType())) {
             return WebhookResponse.builder()
                     .success(true)
@@ -122,48 +149,48 @@ public class PaymentOrderService {
                     .build();
         }
 
-        // Kiểm tra tài khoản thụ hưởng
-        if (payload.getAccountNumber() != null && !payload.getAccountNumber().isBlank()) {
-            if (!payload.getAccountNumber().equals(vietQRHelper.getAccountNo())) {
-                log.warn("Sai số tài khoản nhận tiền. Nhận được: {}, Cấu hình: {}",
-                        payload.getAccountNumber(), vietQRHelper.getAccountNo());
-                return WebhookResponse.builder()
-                        .success(false)
-                        .message("Tài khoản thụ hưởng không khớp")
-                        .build();
-            }
+        // 5. Kiểm tra tài khoản thụ hưởng nhận tiền
+        if (!isMatchingAccountNumber(payload.getAccountNumber())) {
+            log.warn("Tài khoản thụ hưởng không khớp! Nhận được: {}, Cấu hình: {}",
+                    payload.getAccountNumber(), vietQRHelper.getAccountNo());
+            return WebhookResponse.builder()
+                    .success(false)
+                    .message("Tài khoản thụ hưởng không khớp")
+                    .build();
         }
 
-        // 3. Trích xuất mã đơn hàng từ nội dung chuyển khoản
-        String content = payload.getContent() != null ? payload.getContent() : payload.getDescription();
+        // 6. Trích xuất mã đơn hàng từ nội dung chuyển khoản
+        String content = payload.getContent();
         if (content == null || content.isBlank()) {
             return WebhookResponse.builder()
                     .success(false)
-                    .message("Nội dung chuyển khoản rỗng")
+                    .message("Nội dung chuyển khoản rỗng, không thể tìm thấy mã đơn hàng")
                     .build();
         }
 
         String orderCode = extractOrderCode(content);
         if (orderCode == null) {
-            log.warn("Không tìm thấy mã đơn hàng hợp lệ trong nội dung chuyển khoản: {}", content);
+            log.warn("Không tìm thấy mã đơn hàng hợp lệ (dạng PSxxxxxx) trong nội dung: '{}'", content);
             return WebhookResponse.builder()
                     .success(false)
-                    .message("Không tìm thấy mã đơn hàng trong nội dung chuyển khoản")
+                    .message("Không tìm thấy mã đơn hàng hợp lệ trong nội dung chuyển khoản")
                     .build();
         }
 
+        // 7. Tra cứu đơn hàng trong hệ thống
         PaymentOrderEntity order = paymentOrderRepository.findByOrderCode(orderCode).orElse(null);
         if (order == null) {
             log.warn("Mã đơn hàng {} không tồn tại trong hệ thống!", orderCode);
             return WebhookResponse.builder()
                     .success(false)
                     .orderCode(orderCode)
-                    .message("Đơn hàng không tồn tại")
+                    .message("Đơn hàng không tồn tại: " + orderCode)
                     .build();
         }
 
-        // Kiểm tra hết hạn 5 phút
+        // 8. Kiểm tra thời hạn hiệu lực đơn hàng (5 phút)
         if (checkAndUpdateExpiration(order)) {
+            log.warn("Đơn hàng {} đã hết hạn thanh toán!", orderCode);
             return WebhookResponse.builder()
                     .success(false)
                     .orderCode(orderCode)
@@ -171,21 +198,21 @@ public class PaymentOrderService {
                     .build();
         }
 
-        // 4. Kiểm tra trạng thái đơn hàng (chống Replay)
+        // 9. Kiểm tra chống Replay Attack (nếu đã xử lý trước đó)
         if (!"PENDING".equalsIgnoreCase(order.getStatus())) {
-            log.info("Đơn hàng {} đã được xử lý trước đó với trạng thái: {}", orderCode, order.getStatus());
+            log.info("Đơn hàng {} đã được ghi nhận trước đó với trạng thái: {}", orderCode, order.getStatus());
             return WebhookResponse.builder()
                     .success(true)
                     .orderCode(orderCode)
                     .amount(order.getAmount())
-                    .message("Đơn hàng đã được ghi nhận hoàn tất trước đó")
+                    .message("Đơn hàng đã được xác nhận thanh toán trước đó (" + order.getStatus() + ")")
                     .build();
         }
 
-        // 5. Kiểm tra số tiền chuyển khoản (Chống gian lận chuyển thiếu tiền)
+        // 10. Chống gian lận chuyển thiếu tiền
         Long transferredAmount = payload.getTransferAmount();
         if (transferredAmount == null || transferredAmount < order.getAmount()) {
-            log.error("CẢNH BÁO GIAN LẬN: Đơn hàng {} yêu cầu {} VNĐ nhưng chỉ nhận được {} VNĐ!",
+            log.error("CẢNH BÁO GIAN LẬN: Đơn hàng {} yêu cầu {} VNĐ nhưng nhận được {} VNĐ!",
                     orderCode, order.getAmount(), transferredAmount);
             return WebhookResponse.builder()
                     .success(false)
@@ -195,7 +222,7 @@ public class PaymentOrderService {
                     .build();
         }
 
-        // 6. Cập nhật trạng thái đơn hàng thành PAID
+        // 11. Cập nhật trạng thái đơn hàng sang PAID
         order.setStatus("PAID");
         order.setPaidAt(Instant.now());
         order.setTransferAmount(transferredAmount);
@@ -203,10 +230,11 @@ public class PaymentOrderService {
         order.setTransactionReference(payload.getReferenceCode());
         paymentOrderRepository.save(order);
 
-        // 7. Kích hoạt quyền lợi gói PRO bên Auth Service
+        // 12. Kích hoạt quyền lợi gói PRO bên Auth Service
         activateSubscriptionInAuthService(order.getUserId(), order.getPlanCode(), order.getOrderCode());
 
-        log.info("Xử lý webhook thanh toán thành công cho đơn hàng: {}, số tiền: {}", orderCode, transferredAmount);
+        log.info("Xử lý Webhook thanh toán thành công! Đơn: {}, Số tiền: {} VNĐ, User: {}",
+                orderCode, transferredAmount, order.getUserId());
 
         return WebhookResponse.builder()
                 .success(true)
@@ -214,6 +242,15 @@ public class PaymentOrderService {
                 .amount(transferredAmount)
                 .message("Xác nhận thanh toán thành công, đã kích hoạt gói PRO")
                 .build();
+    }
+
+    /**
+     * Tương thích ngược với các caller cũ truyền trực tiếp DTO.
+     */
+    @Transactional
+    public WebhookResponse processWebhook(String authHeader, WebhookPaymentPayload payload) {
+        JsonNode node = objectMapper.valueToTree(payload != null ? payload : new WebhookPaymentPayload());
+        return processWebhook(authHeader, null, null, null, node);
     }
 
     @Transactional
@@ -239,10 +276,8 @@ public class PaymentOrderService {
                     .build();
         }
 
-        // Nếu người dùng test cố tình truyền số tiền nhỏ hơn để thử tính năng chống gian lận
         Long testAmount = request.getAmount() != null ? request.getAmount() : order.getAmount();
         if (testAmount < order.getAmount()) {
-            // Trả về kết quả thông báo rõ ràng cho frontend thay vì crash unhandled
             log.warn("Kiểm thử gian lận cho đơn hàng {}: Yêu cầu {} nhưng chuyển {}",
                     order.getOrderCode(), order.getAmount(), testAmount);
             return WebhookResponse.builder()
@@ -295,10 +330,163 @@ public class PaymentOrderService {
         return "EXPIRED".equalsIgnoreCase(order.getStatus());
     }
 
-    private String extractOrderCode(String content) {
+    /**
+     * Trích xuất mã đơn hàng chuẩn hóa (luôn dạng PS + 6-12 chữ số),
+     * tự động loại bỏ khoảng trắng, dấu gạch ngang do ngân hàng hoặc người dùng thêm vào.
+     */
+    public String extractOrderCode(String content) {
+        if (content == null || content.isBlank()) {
+            return null;
+        }
         Matcher matcher = ORDER_CODE_PATTERN.matcher(content);
         if (matcher.find()) {
-            return matcher.group().toUpperCase();
+            return "PS" + matcher.group(1);
+        }
+        return null;
+    }
+
+    /**
+     * Kiểm tra số tài khoản thụ hưởng, bỏ qua dấu chấm, gạch nối hoặc khoảng trắng.
+     */
+    private boolean isMatchingAccountNumber(String receivedAccount) {
+        if (receivedAccount == null || receivedAccount.isBlank()) {
+            return true; // Không kiểm tra nếu webhook không cung cấp trường này
+        }
+        String cleanReceived = receivedAccount.replaceAll("[^0-9a-zA-Z]", "");
+        String configured = vietQRHelper.getAccountNo();
+        if (configured == null || configured.isBlank()) {
+            return true;
+        }
+        String cleanConfig = configured.replaceAll("[^0-9a-zA-Z]", "");
+        return cleanReceived.equalsIgnoreCase(cleanConfig);
+    }
+
+    /**
+     * Xác thực Webhook Token hỗ trợ SePay (Apikey), Casso (secure-token), PayOS (X-API-KEY), query param.
+     */
+    private boolean isValidWebhookToken(String authHeader, String xApiKey, String secureToken, String queryToken) {
+        if (webhookSecureToken == null || webhookSecureToken.isBlank()) {
+            return true; // Bỏ qua nếu không cấu hình token bí mật
+        }
+
+        // 1. Kiểm tra header Authorization (Bearer hoặc Apikey)
+        if (authHeader != null && !authHeader.isBlank()) {
+            String token = authHeader.trim();
+            if (token.regionMatches(true, 0, "Bearer ", 0, 7)) {
+                token = token.substring(7).trim();
+            } else if (token.regionMatches(true, 0, "Apikey ", 0, 7)) {
+                token = token.substring(7).trim();
+            }
+            if (webhookSecureToken.equals(token)) {
+                return true;
+            }
+        }
+
+        // 2. Kiểm tra header X-API-KEY
+        if (xApiKey != null && webhookSecureToken.equals(xApiKey.trim())) {
+            return true;
+        }
+
+        // 3. Kiểm tra header secure-token (Casso)
+        if (secureToken != null && webhookSecureToken.equals(secureToken.trim())) {
+            return true;
+        }
+
+        // 4. Kiểm tra URL Query param (?token=...)
+        if (queryToken != null && webhookSecureToken.equals(queryToken.trim())) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Phát hiện sự kiện Ping / Test Webhook từ dashboard bên thứ 3.
+     */
+    private boolean isPingOrTest(JsonNode rootNode, WebhookPaymentPayload payload) {
+        if (rootNode != null) {
+            if (rootNode.has("event") && "ping".equalsIgnoreCase(rootNode.get("event").asText())) return true;
+            if (rootNode.has("type") && "ping".equalsIgnoreCase(rootNode.get("type").asText())) return true;
+            if (rootNode.has("test") && rootNode.get("test").asBoolean(false)) return true;
+        }
+        if (payload != null && payload.getContent() != null) {
+            String c = payload.getContent().trim().toUpperCase();
+            if ("PING".equals(c) || "TEST".equals(c) || "WEBHOOK_TEST".equals(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Chuẩn hóa payload từ bất kỳ nhà cung cấp nào thành WebhookPaymentPayload thống nhất.
+     */
+    public WebhookPaymentPayload parsePayload(JsonNode rootNode) {
+        if (rootNode == null || rootNode.isNull()) {
+            return new WebhookPaymentPayload();
+        }
+
+        JsonNode itemNode = rootNode;
+        if (rootNode.has("data")) {
+            JsonNode dataNode = rootNode.get("data");
+            if (dataNode.isArray() && !dataNode.isEmpty()) {
+                itemNode = dataNode.get(0); // Casso gửi danh sách giao dịch
+            } else if (dataNode.isObject()) {
+                itemNode = dataNode; // PayOS gửi đối tượng lồng nhau
+            }
+        } else if (rootNode.isArray() && !rootNode.isEmpty()) {
+            itemNode = rootNode.get(0);
+        }
+
+        String accountNumber = getFirstText(itemNode, "accountNumber", "account_number", "bank_sub_acc_id", "subAccId", "subAccount", "sub_account");
+        Long transferAmount = getFirstLong(itemNode, "transferAmount", "transfer_amount", "amount");
+        String transferType = getFirstText(itemNode, "transferType", "transfer_type", "type");
+        if (transferType == null || transferType.isBlank()) {
+            transferType = "in";
+        }
+        String content = getFirstText(itemNode, "content", "description", "orderCode", "order_code", "remark");
+        String referenceCode = getFirstText(itemNode, "referenceCode", "reference_code", "reference", "ref", "tid", "id");
+        String gateway = getFirstText(itemNode, "gateway", "bank", "bankName", "bank_name", "bank_abbreviation");
+        String transactionDate = getFirstText(itemNode, "transactionDate", "created_at", "when", "transactionDateTime");
+
+        return WebhookPaymentPayload.builder()
+                .accountNumber(accountNumber)
+                .transferAmount(transferAmount)
+                .transferType(transferType)
+                .content(content)
+                .description(content)
+                .referenceCode(referenceCode)
+                .gateway(gateway)
+                .transactionDate(transactionDate)
+                .build();
+    }
+
+    private String getFirstText(JsonNode node, String... fieldNames) {
+        for (String fieldName : fieldNames) {
+            if (node.has(fieldName) && !node.get(fieldName).isNull()) {
+                String text = node.get(fieldName).asText();
+                if (text != null && !text.isBlank()) {
+                    return text.trim();
+                }
+            }
+        }
+        return null;
+    }
+
+    private Long getFirstLong(JsonNode node, String... fieldNames) {
+        for (String fieldName : fieldNames) {
+            if (node.has(fieldName) && !node.get(fieldName).isNull()) {
+                JsonNode valNode = node.get(fieldName);
+                if (valNode.isNumber()) {
+                    return valNode.asLong();
+                }
+                try {
+                    String str = valNode.asText().replaceAll("[^0-9]", "");
+                    if (!str.isBlank()) {
+                        return Long.parseLong(str);
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
         }
         return null;
     }
@@ -384,6 +572,8 @@ public class PaymentOrderService {
                 .accountName(entity.getAccountName())
                 .qrUrl(entity.getQrUrl())
                 .status(entity.getStatus())
+                .transferContent(entity.getTransferContent())
+                .expectedTransferContent(entity.getTransferContent())
                 .transactionReference(entity.getTransactionReference())
                 .paidAt(entity.getPaidAt())
                 .createdAt(entity.getCreatedAt())
