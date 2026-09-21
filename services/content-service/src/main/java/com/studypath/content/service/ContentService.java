@@ -70,19 +70,123 @@ public class ContentService {
 
     // --- Lesson APIs by Topic ---
     public List<LessonDto> getLessonsByTopicId(UUID topicId) {
-        List<LessonEntity> lessons = lessonRepository.findByTopicIdOrderByDisplayOrderAsc(topicId);
+        List<LessonEntity> lessons = lessonRepository.findByTopicIdAndIsRemedialOrderByDisplayOrderAsc(topicId, false);
         if (lessons.isEmpty()) {
-            lessons = lessonRepository.findBySkillIdOrderByDisplayOrderAsc(topicId);
+            lessons = lessonRepository.findBySkillIdOrderByDisplayOrderAsc(topicId).stream()
+                    .filter(l -> !Boolean.TRUE.equals(l.getIsRemedial()))
+                    .collect(Collectors.toList());
         }
         return lessons.stream()
                 .map(lesson -> toLessonDto(lesson, false))
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public List<LessonDto> getRemedialLessonsByTopicId(UUID topicId) {
-        return lessonRepository.findByTopicIdAndIsRemedialOrderByDisplayOrderAsc(topicId, true).stream()
+        List<LessonEntity> remedials = lessonRepository.findByTopicIdAndIsRemedialOrderByDisplayOrderAsc(topicId, true);
+        if (remedials.isEmpty()) {
+            remedials = lessonRepository.findBySkillIdOrderByDisplayOrderAsc(topicId).stream()
+                    .filter(l -> Boolean.TRUE.equals(l.getIsRemedial()))
+                    .collect(Collectors.toList());
+        }
+        if (remedials.isEmpty()) {
+            LessonEntity autoRemedial = generateAutoRemedialLesson(topicId);
+            if (autoRemedial != null) {
+                remedials = List.of(autoRemedial);
+            }
+        }
+        return remedials.stream()
                 .map(lesson -> toLessonDto(lesson, false))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public LessonEntity generateAutoRemedialLesson(UUID topicId) {
+        String topicName = "Chủ đề trọng tâm";
+        var topOpt = topicRepository.findById(topicId);
+        if (topOpt.isPresent()) {
+            topicName = topOpt.get().getName();
+        } else {
+            var skillOpt = skillRepository.findById(topicId);
+            if (skillOpt.isPresent()) {
+                topicName = skillOpt.get().getName();
+            }
+        }
+
+        String title = "[Bài học bổ sung] Chuyên đề củng cố & Luyện tập bổ trợ: " + topicName;
+        String theorySummary = "Bài học bổ trợ được hệ thống tự động cung cấp nhằm giúp bạn củng cố kiến thức trọng tâm, tránh bẫy câu hỏi thường gặp sau bài kiểm tra.";
+
+        StringBuilder content = new StringBuilder();
+        content.append("### Hướng dẫn ôn tập & Củng cố kiến thức: ").append(topicName).append("\n\n");
+        content.append("Dựa trên kết quả bài kiểm tra Topic chưa đạt (< 60%), hệ thống đã phân tích và tổng hợp các kiến thức cốt lõi cùng mẹo tránh bẫy bạn cần lưu ý:\n\n");
+        content.append("#### 1. Các quy tắc và công thức cốt lõi\n");
+        content.append("- Luôn xác định kỹ thì của câu, chủ ngữ chính và tân ngữ trước khi lựa chọn phương án.\n");
+        content.append("- Chú ý đến dạng động từ (V-inf, V-ing, V3/ed) và các trợ động từ đi kèm tương ứng.\n");
+        content.append("- Nhận diện nhanh các trạng từ chỉ thời gian hoặc từ nhận biết đặc trưng trong câu.\n\n");
+        content.append("#### 2. Mẹo phân tích đề thi & Tránh bẫy\n");
+        content.append("- Loại trừ ngay các phương án sai thì hoặc sai hòa hợp chủ vị (Subject-Verb Agreement).\n");
+        content.append("- Đọc kỹ ngữ cảnh xem câu mang nghĩa chủ động hay bị động, điều kiện có thật hay không có thật.\n");
+        content.append("- Cẩn trọng với các cấu trúc đảo ngữ hoặc các trường hợp ngoại lệ bất quy tắc.\n\n");
+        content.append("**Nhiệm vụ của bạn:** Hãy đọc kỹ phần củng cố phía trên, sau đó hoàn thành bài Mini-Quiz 3 câu bên dưới để kích hoạt mở khóa thi lại Topic!");
+
+        LessonEntity remedialLesson = LessonEntity.builder()
+                .topicId(topicId)
+                .skillId(topicId)
+                .title(title)
+                .theorySummary(theorySummary)
+                .content(content.toString())
+                .status("PUBLISHED")
+                .displayOrder(99)
+                .isRemedial(true)
+                .build();
+        remedialLesson = lessonRepository.save(remedialLesson);
+
+        String quizJson = """
+                [
+                  {
+                    "question": "Khi làm bài tập trắc nghiệm liên quan đến chủ đề này, bước đầu tiên quan trọng nhất là gì?",
+                    "options": [
+                      "Xác định thì của câu, chủ ngữ chính và dấu hiệu nhận biết",
+                      "Chọn ngay phương án dài nhất",
+                      "Dịch toàn bộ bài trước khi nhìn 4 phương án",
+                      "Bỏ qua các từ nối trong câu"
+                    ],
+                    "answer": "Xác định thì của câu, chủ ngữ chính và dấu hiệu nhận biết",
+                    "explanation": "Xác định chủ ngữ và dấu hiệu thời gian giúp ta loại trừ ngay 2-3 phương án sai ngữ pháp."
+                  },
+                  {
+                    "question": "Phương pháp nào sau đây giúp tránh bẫy hiệu quả nhất khi làm bài thi trắc nghiệm?",
+                    "options": [
+                      "Phương pháp loại trừ phương án sai ngữ pháp hoặc sai thì",
+                      "Đoán mò ngẫu nhiên phương án C",
+                      "Chọn phương án có từ vựng khó nhất",
+                      "Chỉ đọc 3 từ đầu tiên của câu"
+                    ],
+                    "answer": "Phương pháp loại trừ phương án sai ngữ pháp hoặc sai thì",
+                    "explanation": "Phương pháp loại trừ các câu sai hòa hợp chủ vị hoặc sai thì là chiến thuật làm bài chuẩn xác nhất."
+                  },
+                  {
+                    "question": "Sau khi hoàn thành bài học bổ sung này, bước tiếp theo bạn cần thực hiện là gì?",
+                    "options": [
+                      "Làm lại bài kiểm tra Topic để đánh giá lại năng lực và mở khóa nội dung tiếp theo",
+                      "Bỏ qua và không cần làm bài kiểm tra nữa",
+                      "Học lại toàn bộ khóa học từ đầu",
+                      "Đăng xuất khỏi hệ thống"
+                    ],
+                    "answer": "Làm lại bài kiểm tra Topic để đánh giá lại năng lực và mở khóa nội dung tiếp theo",
+                    "explanation": "Hoàn thành bài bổ sung giúp bạn tự tin làm lại bài kiểm tra Topic để đạt từ 60% trở lên và mở khóa kiến thức tiếp theo."
+                  }
+                ]
+                """;
+
+        miniQuizRepository.save(MiniQuizEntity.builder()
+                .lessonId(remedialLesson.getId())
+                .title("Quiz: Củng cố kiến thức " + topicName)
+                .description("Trả lời đúng tối thiểu 2 câu để hoàn thành bài cải thiện và mở khóa thi lại Topic.")
+                .questionsJson(quizJson)
+                .build());
+
+        return remedialLesson;
     }
 
     // --- Legacy / Skill APIs ---
@@ -270,7 +374,7 @@ public class ContentService {
     }
 
     private SkillDto toSkillDto(SkillEntity entity) {
-        long lessonCount = lessonRepository.findBySkillIdOrderByDisplayOrderAsc(entity.getId()).size();
+        long lessonCount = lessonRepository.countBySkillId(entity.getId());
         return SkillDto.builder()
                 .id(entity.getId())
                 .subjectId(entity.getSubjectId())

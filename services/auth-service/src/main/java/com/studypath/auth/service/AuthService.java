@@ -159,17 +159,37 @@ public class AuthService {
     @Transactional(readOnly = true)
     public List<UserDto> getAllUsers(String role, String status, String keyword) {
         List<AccountEntity> accounts = accountRepository.findAll();
+        if (accounts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UUID> userIds = accounts.stream()
+                .map(AccountEntity::getUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<UUID, StudentProfileEntity> profileMap = studentProfileRepository.findByUserIdIn(userIds).stream()
+                .collect(Collectors.toMap(StudentProfileEntity::getUserId, p -> p, (a, b) -> a));
+
+        Map<UUID, UserEntity> userMap = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(UserEntity::getId, u -> u, (a, b) -> a));
+
+        Set<UUID> proUserIds = userSubscriptionRepository.findActiveSubscriptionUserIds(userIds, Instant.now());
+
+        String kw = (keyword != null && !keyword.trim().isEmpty()) ? keyword.toLowerCase().trim() : null;
+        String requiredStatus = (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("ALL")) ? status : null;
+        String requiredRole = (role != null && !role.trim().isEmpty() && !role.equalsIgnoreCase("ALL")) ? role.toUpperCase().trim() : null;
 
         return accounts.stream()
                 .filter(acc -> {
-                    if (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("ALL")) {
-                        if (!acc.getStatus().equalsIgnoreCase(status)) return false;
+                    if (requiredStatus != null && !acc.getStatus().equalsIgnoreCase(requiredStatus)) {
+                        return false;
                     }
-                    if (keyword != null && !keyword.trim().isEmpty()) {
-                        String kw = keyword.toLowerCase().trim();
-                        boolean matchUsername = acc.getUsername().toLowerCase().contains(kw);
+                    if (kw != null) {
+                        boolean matchUsername = acc.getUsername() != null && acc.getUsername().toLowerCase().contains(kw);
                         if (!matchUsername) {
-                            StudentProfileEntity p = studentProfileRepository.findByUserId(acc.getUserId()).orElse(null);
+                            StudentProfileEntity p = profileMap.get(acc.getUserId());
                             if (p == null || p.getFullName() == null || !p.getFullName().toLowerCase().contains(kw)) {
                                 return false;
                             }
@@ -178,14 +198,19 @@ public class AuthService {
                     return true;
                 })
                 .map(acc -> {
-                    UserEntity user = userRepository.findById(acc.getUserId()).orElse(null);
+                    UserEntity user = userMap.get(acc.getUserId());
                     if (user == null) return null;
-                    List<String> roles = user.getRoles().stream().map(RoleEntity::getName).collect(Collectors.toList());
-                    if (role != null && !role.trim().isEmpty() && !role.equalsIgnoreCase("ALL")) {
-                        if (!roles.contains(role.toUpperCase())) return null;
+
+                    List<String> roles = user.getRoles().stream()
+                            .map(RoleEntity::getName)
+                            .collect(Collectors.toList());
+
+                    if (requiredRole != null && !roles.contains(requiredRole)) {
+                        return null;
                     }
-                    StudentProfileEntity profile = studentProfileRepository.findByUserId(user.getId()).orElse(null);
-                    boolean isPro = isUserPro(user.getId());
+
+                    StudentProfileEntity profile = profileMap.get(acc.getUserId());
+                    boolean isPro = proUserIds.contains(acc.getUserId());
 
                     return UserDto.builder()
                             .userId(user.getId())

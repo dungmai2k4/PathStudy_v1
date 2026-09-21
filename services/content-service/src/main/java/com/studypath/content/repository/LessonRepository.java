@@ -12,4 +12,5 @@ public interface LessonRepository extends JpaRepository<LessonEntity, UUID> {
     List<LessonEntity> findBySkillIdOrderByDisplayOrderAsc(UUID skillId);
     List<LessonEntity> findByTopicIdOrderByDisplayOrderAsc(UUID topicId);
     List<LessonEntity> findByTopicIdAndIsRemedialOrderByDisplayOrderAsc(UUID topicId, Boolean isRemedial);
+    long countBySkillId(UUID skillId);
 }

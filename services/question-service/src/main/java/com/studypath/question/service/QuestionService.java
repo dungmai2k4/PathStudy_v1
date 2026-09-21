@@ -67,9 +67,10 @@ public class QuestionService {
     @Transactional
     public void deleteQuestionBank(UUID id) {
         List<QuestionEntity> questions = questionRepository.findByQuestionBankId(id);
-        for (QuestionEntity q : questions) {
-            questionOptionRepository.deleteByQuestionId(q.getId());
-            questionRepository.delete(q);
+        if (!questions.isEmpty()) {
+            List<UUID> questionIds = questions.stream().map(QuestionEntity::getId).collect(Collectors.toList());
+            questionOptionRepository.deleteByQuestionIdIn(questionIds);
+            questionRepository.deleteAllInBatch(questions);
         }
         questionBankRepository.deleteById(id);
     }
@@ -243,7 +244,7 @@ public class QuestionService {
     }
 
     private QuestionBankDto toQuestionBankDto(QuestionBankEntity entity) {
-        long questionCount = questionRepository.findByQuestionBankId(entity.getId()).size();
+        long questionCount = questionRepository.countByQuestionBankId(entity.getId());
         return QuestionBankDto.builder()
                 .id(entity.getId())
                 .subjectId(entity.getSubjectId())

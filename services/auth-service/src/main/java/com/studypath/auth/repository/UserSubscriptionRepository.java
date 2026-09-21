@@ -17,5 +17,8 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
     @Query("SELECT s FROM UserSubscriptionEntity s WHERE s.userId = :userId AND s.status = 'ACTIVE' AND s.endDate > :now ORDER BY s.endDate DESC")
     List<UserSubscriptionEntity> findActiveSubscriptions(@Param("userId") UUID userId, @Param("now") Instant now);
 
+    @Query("SELECT DISTINCT s.userId FROM UserSubscriptionEntity s WHERE s.userId IN :userIds AND s.status = 'ACTIVE' AND s.endDate > :now")
+    java.util.Set<UUID> findActiveSubscriptionUserIds(@Param("userIds") java.util.Collection<UUID> userIds, @Param("now") Instant now);
+
     Optional<UserSubscriptionEntity> findTopByUserIdOrderByEndDateDesc(UUID userId);
 }

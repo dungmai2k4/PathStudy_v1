@@ -16,4 +16,5 @@ public interface QuestionRepository extends JpaRepository<QuestionEntity, UUID> 
     List<QuestionEntity> findByDifficulty(String difficulty);
     List<QuestionEntity> findByTopicId(UUID topicId);
     List<QuestionEntity> findByModuleId(UUID moduleId);
+    long countByQuestionBankId(UUID questionBankId);
 }
