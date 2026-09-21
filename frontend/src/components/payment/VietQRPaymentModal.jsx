@@ -7,8 +7,6 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  Sparkles,
-  Zap,
   ShieldCheck,
   X,
   AlertTriangle,
@@ -29,9 +27,6 @@ export default function VietQRPaymentModal({ order, onClose, onSuccess }) {
   };
 
   const [timeLeft, setTimeLeft] = useState(calculateRemainingSeconds);
-  const [simulating, setSimulating] = useState(false);
-  const [simulateError, setSimulateError] = useState('');
-  const [simulateMsg, setSimulateMsg] = useState('');
 
   const pollingRef = useRef(null);
 
@@ -51,29 +46,28 @@ export default function VietQRPaymentModal({ order, onClose, onSuccess }) {
     return () => clearInterval(timer);
   }, [order?.createdAt]);
 
-  // Polling trạng thái đơn hàng mỗi 2 giây
+  // Polling kiểm tra trạng thái đơn hàng mỗi 2 giây
   useEffect(() => {
-    if (status === 'PAID' || status === 'EXPIRED') return;
+    if (!order?.orderCode || status !== 'PENDING') return;
 
     pollingRef.current = setInterval(async () => {
       try {
-        const latest = await paymentService.getOrderDetails(order.orderCode);
-        if (latest) {
-          if (latest.status === 'PAID') {
-            setStatus('PAID');
-            clearInterval(pollingRef.current);
-            if (onSuccess) {
-              setTimeout(() => {
-                onSuccess(latest);
-              }, 1800);
-            }
-          } else if (latest.status === 'EXPIRED') {
-            setStatus('EXPIRED');
-            clearInterval(pollingRef.current);
+        const res = await paymentService.getOrder(order.orderCode);
+        const latestOrder = res.data || res;
+        if (latestOrder && latestOrder.status === 'PAID') {
+          setStatus('PAID');
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          if (onSuccess) {
+            setTimeout(() => {
+              onSuccess(latestOrder);
+            }, 1800);
           }
+        } else if (latestOrder && latestOrder.status === 'EXPIRED') {
+          setStatus('EXPIRED');
+          if (pollingRef.current) clearInterval(pollingRef.current);
         }
       } catch (err) {
-        console.error('Polling error:', err);
+        console.warn('Lỗi polling đơn hàng:', err);
       }
     }, 2000);
 
@@ -99,55 +93,30 @@ export default function VietQRPaymentModal({ order, onClose, onSuccess }) {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Giả lập chuyển khoản (Test Local)
-  const handleSimulatePayment = async (amount = null) => {
-    setSimulating(true);
-    setSimulateError('');
-    setSimulateMsg('');
-
-    try {
-      const res = await paymentService.simulatePaymentSuccess(order.orderCode, amount);
-      if (res && res.success) {
-        setSimulateMsg(res.message || 'Giả lập chuyển khoản thành công!');
-        setStatus('PAID');
-        if (onSuccess) {
-          setTimeout(() => {
-            onSuccess(order);
-          }, 1800);
-        }
-      } else {
-        // Trường hợp backend phát hiện chuyển thiếu tiền hoặc đơn hàng hết hạn
-        setSimulateError(res?.message || 'Chuyển khoản không hợp lệ!');
-      }
-    } catch (err) {
-      console.error('Simulate error:', err);
-      const errorMsg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        'Có lỗi khi giả lập chuyển khoản.';
-      setSimulateError(errorMsg);
-    } finally {
-      setSimulating(false);
-    }
+  const getBankName = (code) => {
+    if (!code) return 'MB Bank';
+    const c = String(code).toUpperCase();
+    if (c === 'MB' || c === 'MBBANK') return 'MB Bank (Quân Đội)';
+    if (c === 'TCB' || c === 'TECHCOMBANK') return 'Techcombank (TCB)';
+    return code;
   };
 
   const isExpired = status === 'EXPIRED' || timeLeft <= 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-              TCB
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full my-auto overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
+        {/* Header Modal */}
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs">
+              <QrCode className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
                 <span>Thanh Toán Chuyển Khoản VietQR</span>
-                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
-                  Techcombank
+                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                  {getBankName(order.bankCode)}
                 </span>
               </h3>
               <p className="text-xs text-slate-500">
@@ -164,51 +133,64 @@ export default function VietQRPaymentModal({ order, onClose, onSuccess }) {
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-6">
+        <div className="p-5 sm:p-6 space-y-5">
           {/* Trạng thái 1: PAID */}
           {status === 'PAID' ? (
-            <div className="text-center py-8 space-y-4">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner animate-bounce">
-                <CheckCircle2 className="w-10 h-10" />
+            <div className="text-center py-8 space-y-4 animate-in zoom-in-95 duration-300">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle2 className="w-9 h-9" />
               </div>
               <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Đã Kích Hoạt Quyền Lợi PRO</span>
-                </div>
-                <h4 className="text-2xl font-bold text-slate-900">Thanh Toán Thành Công!</h4>
-                <p className="text-sm text-slate-600 max-w-md mx-auto">
-                  Hệ thống đã nhận được số tiền <strong>{formatCurrency(order.amount)}</strong> cho đơn hàng{' '}
-                  <strong className="font-mono text-indigo-600">{order.orderCode}</strong>.
+                <h4 className="text-lg sm:text-xl font-bold text-slate-900">
+                  Thanh Toán Thành Công! 🎉
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-600">
+                  Tài khoản của bạn đã được nâng cấp thành công lên gói{' '}
+                  <strong className="text-indigo-600">{order.planName}</strong>.
                 </p>
+              </div>
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-left text-xs text-emerald-900 space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-emerald-700">Mã giao dịch:</span>
+                  <span className="font-mono font-bold">{order.orderCode}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-emerald-700">Số tiền:</span>
+                  <span className="font-bold">{formatCurrency(order.amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-emerald-700">Trạng thái:</span>
+                  <span className="font-semibold text-emerald-700">ĐÃ KÍCH HOẠT PRO</span>
+                </div>
               </div>
               <button
                 onClick={onClose}
-                className="mt-4 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-xs transition"
+                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm transition shadow-sm"
               >
-                Hoàn Tất & Vào Học Ngay
+                Bắt đầu trải nghiệm ngay
               </button>
             </div>
           ) : isExpired ? (
             /* Trạng thái 2: EXPIRED (Đã hết hạn 5 phút) */
             <div className="text-center py-8 space-y-4">
-              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                <AlertTriangle className="w-9 h-9" />
+              <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+                <AlertTriangle className="w-8 h-8" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-2xl font-bold text-slate-900">Mã QR Đã Hết Hạn</h4>
-                <p className="text-sm text-slate-600 max-w-md mx-auto">
-                  Đơn hàng <strong>{order.orderCode}</strong> đã hết hiệu lực sau 5 phút kể từ lúc tạo giao dịch.
-                  Vui lòng tạo đơn mới để lấy mã QR thanh toán mới nhất.
+                <h4 className="text-lg font-bold text-slate-900">
+                  Đơn hàng đã hết thời gian hiệu lực
+                </h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Mỗi giao dịch thanh toán VietQR có hiệu lực trong 5 phút. Vui lòng tạo lại đơn mới để nhận mã QR mới.
                 </p>
               </div>
               <div className="pt-2">
                 <button
                   onClick={onClose}
-                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-xs transition inline-flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs sm:text-sm transition shadow-sm inline-flex items-center gap-2"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  <span>Đóng & Tạo Đơn Hàng Mới</span>
+                  <span>Đóng và chọn lại gói</span>
                 </button>
               </div>
             </div>
@@ -216,14 +198,12 @@ export default function VietQRPaymentModal({ order, onClose, onSuccess }) {
             /* Trạng thái 3: PENDING */
             <>
               {/* Cảnh báo đếm ngược 5 phút */}
-              <div className="flex items-center justify-between bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-xs sm:text-sm text-amber-800">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-amber-900 text-xs">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>
-                    Mã QR có hiệu lực <strong>5 phút</strong> tính từ lúc tạo:
-                  </span>
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  <span>Thời gian hiệu lực của đơn:</span>
                 </div>
-                <span className="font-mono font-bold text-base text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                <span className="font-mono font-bold text-amber-700 text-sm">
                   {formatTimer(timeLeft)}
                 </span>
               </div>
@@ -235,7 +215,7 @@ export default function VietQRPaymentModal({ order, onClose, onSuccess }) {
                   <div className="bg-white p-2 rounded-lg border border-slate-200 inline-block shadow-xs">
                     <img
                       src={order.qrUrl}
-                      alt="VietQR Techcombank"
+                      alt={`VietQR ${getBankName(order.bankCode)}`}
                       className="w-56 h-56 object-contain mx-auto"
                     />
                   </div>
@@ -256,7 +236,7 @@ export default function VietQRPaymentModal({ order, onClose, onSuccess }) {
                   <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center justify-between">
                     <div>
                       <span className="text-[11px] text-slate-500 block">Ngân hàng thụ hưởng</span>
-                      <span className="font-bold text-slate-800">Techcombank (TCB)</span>
+                      <span className="font-bold text-slate-800">{getBankName(order.bankCode)}</span>
                     </div>
                   </div>
 
@@ -333,58 +313,6 @@ export default function VietQRPaymentModal({ order, onClose, onSuccess }) {
                   Vui lòng điền <strong>chính xác nội dung chuyển khoản {order.orderCode}</strong> và{' '}
                   <strong>đúng số tiền {formatCurrency(order.amount)}</strong>. Hệ thống tự động kích hoạt gói Pro ngay khi ngân hàng nhận tiền.
                 </p>
-              </div>
-
-              {/* Developer Test Tools (Local Simulation) */}
-              <div className="p-3.5 rounded-xl bg-slate-900 text-slate-100 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
-                    <Zap className="w-4 h-4" />
-                    <span>Bộ Công Cụ Thử Nghiệm Local (Simulator)</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded">
-                    Môi trường Development
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Mô phỏng biến động số dư để kiểm thử luồng tự động và tính năng đối soát chống gian lận:
-                </p>
-
-                {simulateMsg && (
-                  <div className="p-2.5 rounded bg-emerald-900/60 border border-emerald-600 text-emerald-200 text-xs flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                    <span>{simulateMsg}</span>
-                  </div>
-                )}
-
-                {simulateError && (
-                  <div className="p-2.5 rounded bg-red-900/60 border border-red-600 text-red-200 text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
-                    <span className="leading-snug">{simulateError}</span>
-                  </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleSimulatePayment()}
-                    disabled={simulating}
-                    className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>{simulating ? 'Đang xử lý...' : '⚡ Giả lập chuyển khoản thành công (PAID)'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSimulatePayment(order.amount - 10000)}
-                    disabled={simulating}
-                    className="py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 font-semibold text-xs border border-slate-700 transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    title="Thử chuyển thiếu 10.000 VNĐ để kiểm tra tính năng từ chối gian lận của hệ thống"
-                  >
-                    <span>⚠️ Test chuyển thiếu tiền (-10.000 ₫)</span>
-                  </button>
-                </div>
               </div>
             </>
           )}

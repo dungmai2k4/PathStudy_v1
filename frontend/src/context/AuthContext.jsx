@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }) => {
         } catch (err) {
           console.error('Failed to restore session:', err);
           authService.logout();
+          setUser(null);
         }
       }
       setLoading(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import assessmentService from '../../services/assessmentService';
@@ -60,38 +60,18 @@ export default function PlacementTestPage() {
     initTest();
   }, [user?.userId]);
 
-  // Live countdown timer
-  useEffect(() => {
-    if (!testData || result || timeLeft <= 0) return;
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSubmitTest(); // Auto-submit when time expires
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  const submittingRef = useRef(false);
 
-    return () => clearInterval(timer);
-  }, [testData, result, timeLeft]);
+  const submitWithAnswers = async (answersToSubmit) => {
+    if (!testData?.attemptId || submittingRef.current || result) return;
 
-  const handleSelectOption = (questionId, optionId) => {
-    if (result || submitting) return;
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: optionId,
-    }));
-  };
-
-  const handleSubmitTest = async () => {
-    if (!testData?.attemptId || submitting || result) return;
-
+    submittingRef.current = true;
     setSubmitting(true);
     try {
-      const answerList = Object.entries(answers).map(([questionId, selectedOptionId]) => ({
+      const answerList = Object.entries(answersToSubmit || {}).map(([questionId, selectedOptionId]) => ({
         questionId,
         selectedOptionId,
       }));
@@ -102,8 +82,39 @@ export default function PlacementTestPage() {
       console.error('Lỗi khi nộp bài khảo sát:', err);
       alert('Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
+  };
+
+  // Live countdown timer: stable interval without re-creating every second
+  useEffect(() => {
+    if (!testData || result) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          submitWithAnswers(answersRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [testData, result]);
+
+  const handleSelectOption = (questionId, optionId) => {
+    if (result || submitting) return;
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: optionId,
+    }));
+  };
+
+  const handleSubmitTest = () => {
+    submitWithAnswers(answers);
   };
 
   const handleCreatePersonalizedPath = async () => {

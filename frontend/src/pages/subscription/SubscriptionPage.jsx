@@ -221,15 +221,15 @@ export default function SubscriptionPage() {
           {/* Thông tin phương thức thanh toán VietQR */}
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-red-600 text-white flex items-center justify-center font-extrabold text-xs shadow-xs">
-                TCB
+              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                MB
               </div>
               <div>
                 <span className="text-xs sm:text-sm font-bold text-slate-800 block">
                   Thanh toán chuyển khoản quét mã VietQR tự động
                 </span>
                 <span className="text-xs text-slate-500">
-                  Techcombank — Số TK: <strong>19070027277011</strong> — MAI TIEN DUNG
+                  MB Bank — Số TK: <strong>18122004210620</strong> — MAI TIEN DUNG
                 </span>
               </div>
             </div>
@@ -355,7 +355,7 @@ export default function SubscriptionPage() {
             <div>
               <h3 className="text-base font-bold text-slate-900">Lịch Sử Đơn Hàng Thanh Toán</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Danh sách các đơn hàng chuyển khoản VietQR qua tài khoản Techcombank (hiệu lực mỗi đơn 5 phút).
+                Danh sách các đơn hàng chuyển khoản VietQR qua tài khoản MB Bank (hiệu lực mỗi đơn 5 phút).
               </p>
             </div>
             <button
