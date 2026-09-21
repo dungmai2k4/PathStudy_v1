@@ -1,0 +1,45 @@
+name: PathStudy Production CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build All Services
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Verify Microservice JARs
+        run: |
+          chmod +x scripts/build-jars.sh
+          ls -la services/*/target/*.jar infrastructure/eureka-server/target/*.jar
+
+      # Tự động SSH vào VPS để kéo code và khởi chạy (Yêu cầu cấu hình GitHub Secrets)
+      # Để kích hoạt, bỏ comment phần dưới và thêm VPS_HOST, VPS_USER, VPS_SSH_KEY vào Settings -> Secrets:
+      # - name: Deploy to VPS
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ secrets.VPS_HOST }}
+      #     username: ${{ secrets.VPS_USER }}
+      #     key: ${{ secrets.VPS_SSH_KEY }}
+      #     script: |
+      #       cd /var/www/PathStudy_v1
+      #       git pull origin main
+      #       mvn clean package -DskipTests
+      #       docker compose -f docker-compose.prod.yml up -d --build
+      #       docker image prune -f
