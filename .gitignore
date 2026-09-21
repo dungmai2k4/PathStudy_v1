@@ -39,9 +39,11 @@ Thumbs.db
 *.env*
 !.env.example
 !**/.env.example
+!.env.prod.example
 
-# Documentation (local only)
-docs/
+# Documentation (local only except deployment guide)
+docs/*
+!docs/DEPLOYMENT_GUIDE.md
 
 # Docker / Temporary
 scratch/
