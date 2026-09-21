@@ -178,6 +178,7 @@ public class AdaptiveLearningService {
 
         // ===== STEP 5: Create skill nodes with proficiency context =====
         List<SkillNodeDto> nodeDtos = new ArrayList<>();
+        Set<UUID> unlockedModules = new HashSet<>();
         int seq = 1;
 
         for (Map.Entry<UUID, String> entry : sortedSkills) {
@@ -190,16 +191,17 @@ public class AdaptiveLearningService {
             // Generate adaptive priority reason to display in UI
             String reason = buildPriorityReason(baseline, profLevel, seq, sortedSkills.size());
 
-            // Skill Gating: Only first skill unlocked, rest locked
-            String nodeStatus = (seq == 1) ? "UNLOCKED" : "LOCKED";
-            Instant unlockedAt = (seq == 1) ? Instant.now() : null;
-
             // Determine module info
             UUID grammarModId = UUID.fromString("22222222-2222-2222-2222-222222222210");
             UUID vocabModId = UUID.fromString("22222222-2222-2222-2222-222222222220");
             boolean isGrammar = sId.toString().endsWith("01") || sId.toString().endsWith("02") || sId.toString().endsWith("03") || sId.toString().endsWith("04");
             UUID modId = isGrammar ? grammarModId : vocabModId;
             String modName = isGrammar ? "Ngữ pháp (Grammar)" : "Từ vựng (Vocabulary)";
+
+            // Each module is independent: unlock the first topic of each module
+            boolean isFirstInModule = unlockedModules.add(modId);
+            String nodeStatus = isFirstInModule ? "UNLOCKED" : "LOCKED";
+            Instant unlockedAt = isFirstInModule ? Instant.now() : null;
 
             StudyPathSkillNodeEntity node = StudyPathSkillNodeEntity.builder()
                     .studyPathId(studyPath.getId())
@@ -368,13 +370,24 @@ public class AdaptiveLearningService {
         currentNode.setCompletedAt(Instant.now());
         studyPathSkillNodeRepository.save(currentNode);
 
-        // Find and unlock next node
-        int nextSeq = currentNode.getSequenceOrder() + 1;
-        Optional<StudyPathSkillNodeEntity> nextNodeOpt = studyPathSkillNodeRepository.findByStudyPathIdAndSequenceOrder(path.getId(), nextSeq);
+        // Find and unlock next node in the SAME module
+        List<StudyPathSkillNodeEntity> allNodes = studyPathSkillNodeRepository.findByStudyPathIdOrderBySequenceOrderAsc(path.getId());
+        List<StudyPathSkillNodeEntity> sameModuleNodes = allNodes.stream()
+                .filter(n -> Objects.equals(n.getModuleId(), currentNode.getModuleId()) ||
+                             (n.getModuleName() != null && n.getModuleName().equalsIgnoreCase(currentNode.getModuleName())))
+                .toList();
+
+        int curIdx = -1;
+        for (int i = 0; i < sameModuleNodes.size(); i++) {
+            if (sameModuleNodes.get(i).getId().equals(currentNode.getId())) {
+                curIdx = i;
+                break;
+            }
+        }
 
         String msg;
-        if (nextNodeOpt.isPresent()) {
-            StudyPathSkillNodeEntity nextNode = nextNodeOpt.get();
+        if (curIdx >= 0 && curIdx + 1 < sameModuleNodes.size()) {
+            StudyPathSkillNodeEntity nextNode = sameModuleNodes.get(curIdx + 1);
             if (!"COMPLETED".equals(nextNode.getStatus())) {
                 nextNode.setStatus("UNLOCKED");
                 nextNode.setUnlockedAt(Instant.now());
@@ -382,16 +395,18 @@ public class AdaptiveLearningService {
             }
             msg = "Chúc mừng! Bạn đã vượt qua bài kiểm tra Topic và mở khóa: " + nextNode.getSkillName();
         } else {
-            path.setStatus("COMPLETED");
-            msg = "Xuất sắc! Bạn đã hoàn thành toàn bộ chủ đề trong môn học. Hãy tiến hành làm bài kiểm tra tổng kết môn!";
+            msg = "Xuất sắc! Bạn đã hoàn thành toàn bộ chủ đề trong module này.";
         }
 
-        // Recalculate progress
-        List<StudyPathSkillNodeEntity> allNodes = studyPathSkillNodeRepository.findByStudyPathIdOrderBySequenceOrderAsc(path.getId());
+        // Recalculate progress across all modules
         long completed = allNodes.stream().filter(n -> "COMPLETED".equals(n.getStatus())).count();
         path.setCompletedSkills((int) completed);
         int total = allNodes.isEmpty() ? 1 : allNodes.size();
         path.setProgressPercentage(Math.round((float) completed * 100 / total));
+        if (completed == total) {
+            path.setStatus("COMPLETED");
+            msg = "Xuất sắc! Bạn đã hoàn thành toàn bộ chủ đề trong môn học. Hãy tiến hành làm bài kiểm tra tổng kết môn!";
+        }
         studyPathRepository.save(path);
 
         return UnlockResponse.builder()
@@ -472,23 +487,15 @@ public class AdaptiveLearningService {
                 log.error("Error serializing lessonOrderJson", e);
             }
 
-            // Reset progress for weak lessons so student can review and re-test
-            for (UUID wId : request.getWeakLessonIds()) {
-                studentLessonProgressRepository.findByStudentIdAndLessonId(request.getStudentId(), wId)
-                        .ifPresent(p -> {
-                            p.setIsCompleted(false);
-                            p.setQuizCompleted(false);
-                            studentLessonProgressRepository.save(p);
-                        });
-            }
+            // DO NOT reset progress for completed lessons! Student retains their completed status.
         }
 
         String reason;
         if (request.getWeakLessonTitles() != null && !request.getWeakLessonTitles().isEmpty()) {
             String titles = String.join(", ", request.getWeakLessonTitles());
-            reason = "Điểm kiểm tra chủ đề đạt " + request.getScorePercentage() + "% (< 80%). Bạn còn yếu ở bài: [" + titles + "]. Hệ thống đã sắp xếp lại lộ trình ưu tiên bài học này để bạn củng cố trước khi thi lại!";
+            reason = "Điểm kiểm tra chủ đề đạt " + request.getScorePercentage() + "% (< 60%). Bạn cần củng cố nội dung: [" + titles + "]. Hệ thống đã bổ sung bài học bổ sung bên dưới để bạn ôn luyện trước khi làm lại bài kiểm tra.";
         } else {
-            reason = "Điểm kiểm tra chủ đề đạt " + request.getScorePercentage() + "% (< 80%). Hệ thống đã tự động bổ sung bài học ôn tập chuyên sâu để củng cố kiến thức trước khi thi lại!";
+            reason = "Điểm kiểm tra chủ đề đạt " + request.getScorePercentage() + "% (< 60%). Hệ thống đã bổ sung bài học bổ sung bên dưới để bạn ôn luyện trước khi làm lại bài kiểm tra.";
         }
         node.setRemedialReason(reason);
         studyPathSkillNodeRepository.save(node);

@@ -31,7 +31,7 @@ public class AssessmentService {
     private final AssessmentAnswerRepository assessmentAnswerRepository;
     private final SkillAssessmentResultRepository skillAssessmentResultRepository;
     private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Value("${app.services.question-url:http://localhost:8083}")
     private String questionServiceUrl;
@@ -91,71 +91,7 @@ public class AssessmentService {
         assessment = assessmentRepository.save(assessment);
 
         // Save Question Entities
-        List<AssessmentQuestionDto> dtoList = new ArrayList<>();
-        int order = 1;
-
-        for (Map<String, Object> q : chosenQuestions) {
-            UUID qId = UUID.fromString((String) q.get("id"));
-            UUID sId = UUID.fromString((String) q.get("skillId"));
-            String sName = (String) q.getOrDefault("resolvedSkillName", "Tiếng Anh");
-            String content = (String) q.get("content");
-            String difficulty = (String) q.getOrDefault("difficulty", "MEDIUM");
-            String explanation = (String) q.getOrDefault("explanation", "");
-
-            List<Map<String, Object>> rawOptions = (List<Map<String, Object>>) q.get("options");
-            UUID correctOptId = null;
-
-            List<OptionDto> clientOptions = new ArrayList<>();
-            for (Map<String, Object> opt : rawOptions) {
-                UUID optId = UUID.fromString((String) opt.get("id"));
-                String optContent = (String) opt.get("optionContent");
-                Boolean isCorr = Boolean.TRUE.equals(opt.get("isCorrect"));
-                if (isCorr) {
-                    correctOptId = optId;
-                }
-                clientOptions.add(OptionDto.builder()
-                        .id(optId)
-                        .optionContent(optContent)
-                        .build());
-            }
-
-            // Shuffle options for each question as well
-            Collections.shuffle(clientOptions);
-
-            String optionsJson = "";
-            try {
-                optionsJson = objectMapper.writeValueAsString(clientOptions);
-            } catch (Exception e) {
-                log.error("Error serializing options", e);
-            }
-
-            AssessmentQuestionEntity qEntity = AssessmentQuestionEntity.builder()
-                    .assessmentId(assessment.getId())
-                    .questionId(qId)
-                    .skillId(sId)
-                    .skillName(sName)
-                    .content(content)
-                    .difficulty(difficulty)
-                    .optionsJson(optionsJson)
-                    .correctOptionId(correctOptId != null ? correctOptId : UUID.randomUUID())
-                    .explanation(explanation)
-                    .displayOrder(order)
-                    .build();
-            assessmentQuestionRepository.save(qEntity);
-
-            dtoList.add(AssessmentQuestionDto.builder()
-                    .id(qEntity.getId())
-                    .questionId(qId)
-                    .skillId(sId)
-                    .skillName(sName)
-                    .content(content)
-                    .difficulty(difficulty)
-                    .displayOrder(order)
-                    .options(clientOptions)
-                    .build());
-
-            order++;
-        }
+        List<AssessmentQuestionDto> dtoList = saveQuestionsAndBuildDtos(assessment.getId(), chosenQuestions, null, "Tiếng Anh");
 
         // Create Assessment Attempt
         AssessmentAttemptEntity attempt = AssessmentAttemptEntity.builder()
@@ -203,73 +139,11 @@ public class AssessmentService {
                 .type("SKILL_TEST")
                 .timeLimitMinutes(timeLimit)
                 .totalQuestions(chosen.size())
-                .passingScorePercentage(80)
+                .passingScorePercentage(60)
                 .build();
         assessment = assessmentRepository.save(assessment);
 
-        List<AssessmentQuestionDto> dtoList = new ArrayList<>();
-        int order = 1;
-
-        for (Map<String, Object> q : chosen) {
-            UUID qId = UUID.fromString((String) q.get("id"));
-            UUID sId = request.getSkillId();
-            String content = (String) q.get("content");
-            String difficulty = (String) q.getOrDefault("difficulty", "MEDIUM");
-            String explanation = (String) q.getOrDefault("explanation", "");
-
-            List<Map<String, Object>> rawOptions = (List<Map<String, Object>>) q.get("options");
-            UUID correctOptId = null;
-
-            List<OptionDto> clientOptions = new ArrayList<>();
-            for (Map<String, Object> opt : rawOptions) {
-                UUID optId = UUID.fromString((String) opt.get("id"));
-                String optContent = (String) opt.get("optionContent");
-                Boolean isCorr = Boolean.TRUE.equals(opt.get("isCorrect"));
-                if (isCorr) {
-                    correctOptId = optId;
-                }
-                clientOptions.add(OptionDto.builder()
-                        .id(optId)
-                        .optionContent(optContent)
-                        .build());
-            }
-
-            Collections.shuffle(clientOptions);
-
-            String optionsJson = "";
-            try {
-                optionsJson = objectMapper.writeValueAsString(clientOptions);
-            } catch (Exception e) {
-                log.error("Error serializing options", e);
-            }
-
-            AssessmentQuestionEntity qEntity = AssessmentQuestionEntity.builder()
-                    .assessmentId(assessment.getId())
-                    .questionId(qId)
-                    .skillId(sId)
-                    .skillName(skillName)
-                    .content(content)
-                    .difficulty(difficulty)
-                    .optionsJson(optionsJson)
-                    .correctOptionId(correctOptId != null ? correctOptId : UUID.randomUUID())
-                    .explanation(explanation)
-                    .displayOrder(order)
-                    .build();
-            assessmentQuestionRepository.save(qEntity);
-
-            dtoList.add(AssessmentQuestionDto.builder()
-                    .id(qEntity.getId())
-                    .questionId(qId)
-                    .skillId(sId)
-                    .skillName(skillName)
-                    .content(content)
-                    .difficulty(difficulty)
-                    .displayOrder(order)
-                    .options(clientOptions)
-                    .build());
-
-            order++;
-        }
+        List<AssessmentQuestionDto> dtoList = saveQuestionsAndBuildDtos(assessment.getId(), chosen, request.getSkillId(), skillName);
 
         AssessmentAttemptEntity attempt = AssessmentAttemptEntity.builder()
                 .assessmentId(assessment.getId())
@@ -321,126 +195,14 @@ public class AssessmentService {
                 .type("TOPIC_TEST")
                 .timeLimitMinutes(timeLimit)
                 .totalQuestions(chosen.size())
-                .passingScorePercentage(80)
+                .passingScorePercentage(60)
                 .build();
         assessment = assessmentRepository.save(assessment);
 
         List<Map<String, Object>> topicLessons = fetchLessonsForTopic(request.getTopicId());
 
-        List<AssessmentQuestionDto> dtoList = new ArrayList<>();
-        int order = 1;
-
-        for (Map<String, Object> q : chosen) {
-            UUID qId = UUID.fromString((String) q.get("id"));
-            UUID tId = request.getTopicId();
-            String content = (String) q.get("content");
-            String difficulty = (String) q.getOrDefault("difficulty", "MEDIUM");
-            String explanation = (String) q.getOrDefault("explanation", "");
-
-            UUID lessonId = null;
-            String lessonTitle = null;
-            if (q.get("lessonId") != null) {
-                try {
-                    lessonId = UUID.fromString(q.get("lessonId").toString());
-                } catch (Exception ignored) {}
-            }
-            if (lessonId != null && !topicLessons.isEmpty()) {
-                for (Map<String, Object> l : topicLessons) {
-                    if (lessonId.toString().equals(String.valueOf(l.get("id")))) {
-                        lessonTitle = (String) l.get("title");
-                        break;
-                    }
-                }
-            }
-            if ((lessonId == null || lessonTitle == null) && !topicLessons.isEmpty()) {
-                String text = ((content != null ? content : "") + " " + (explanation != null ? explanation : "")).toLowerCase();
-                for (Map<String, Object> l : topicLessons) {
-                    String lt = (String) l.get("title");
-                    if (lt == null) continue;
-                    String ltl = lt.toLowerCase();
-                    if ((ltl.contains("present perfect") && (text.contains("present perfect") || text.contains("hiện tại hoàn thành")))
-                            || (ltl.contains("past perfect") && (text.contains("past perfect") || text.contains("quá khứ hoàn thành")))
-                            || (ltl.contains("past simple") && (text.contains("past simple") || text.contains("quá khứ đơn")))
-                            || (ltl.contains("present simple") && (text.contains("present simple") || text.contains("hiện tại đơn")))
-                            || (ltl.contains("tiếp diễn") && text.contains("tiếp diễn"))
-                            || (ltl.contains("loại 0") && text.contains("loại 0"))
-                            || (ltl.contains("loại 1") && text.contains("loại 1"))
-                            || (ltl.contains("loại 2") && text.contains("loại 2"))
-                            || (ltl.contains("collocation") && text.contains("collocation"))
-                            || (ltl.contains("cấu tạo từ") && text.contains("cấu tạo từ"))
-                            || (ltl.contains("phrasal") && text.contains("phrasal"))) {
-                        lessonId = UUID.fromString((String) l.get("id"));
-                        lessonTitle = lt;
-                        break;
-                    }
-                }
-                if (lessonId == null && !topicLessons.isEmpty()) {
-                    Map<String, Object> fallback = topicLessons.get((order - 1) % topicLessons.size());
-                    lessonId = UUID.fromString((String) fallback.get("id"));
-                    lessonTitle = (String) fallback.get("title");
-                }
-            }
-
-            List<Map<String, Object>> rawOptions = (List<Map<String, Object>>) q.get("options");
-            UUID correctOptId = null;
-
-            List<OptionDto> clientOptions = new ArrayList<>();
-            if (rawOptions != null) {
-                for (Map<String, Object> opt : rawOptions) {
-                    UUID optId = UUID.fromString((String) opt.get("id"));
-                    String optContent = (String) opt.get("optionContent");
-                    Boolean isCorr = Boolean.TRUE.equals(opt.get("isCorrect"));
-                    if (isCorr) {
-                        correctOptId = optId;
-                    }
-                    clientOptions.add(OptionDto.builder()
-                            .id(optId)
-                            .optionContent(optContent)
-                            .build());
-                }
-            }
-
-            Collections.shuffle(clientOptions);
-
-            String optionsJson = "";
-            try {
-                optionsJson = objectMapper.writeValueAsString(clientOptions);
-            } catch (Exception e) {
-                log.error("Error serializing options", e);
-            }
-
-            AssessmentQuestionEntity qEntity = AssessmentQuestionEntity.builder()
-                    .assessmentId(assessment.getId())
-                    .questionId(qId)
-                    .skillId(tId)
-                    .skillName(topicName)
-                    .lessonId(lessonId)
-                    .lessonTitle(lessonTitle)
-                    .content(content)
-                    .difficulty(difficulty)
-                    .optionsJson(optionsJson)
-                    .correctOptionId(correctOptId != null ? correctOptId : UUID.randomUUID())
-                    .explanation(explanation)
-                    .displayOrder(order)
-                    .build();
-            assessmentQuestionRepository.save(qEntity);
-
-            dtoList.add(AssessmentQuestionDto.builder()
-                    .id(qEntity.getId())
-                    .questionId(qId)
-                    .topicId(tId)
-                    .skillId(tId)
-                    .skillName(topicName)
-                    .lessonId(lessonId)
-                    .lessonTitle(lessonTitle)
-                    .content(content)
-                    .difficulty(difficulty)
-                    .displayOrder(order)
-                    .options(clientOptions)
-                    .build());
-
-            order++;
-        }
+        resolveLessonsForTopicQuestions(chosen, topicLessons);
+        List<AssessmentQuestionDto> dtoList = saveQuestionsAndBuildDtos(assessment.getId(), chosen, request.getTopicId(), topicName);
 
         AssessmentAttemptEntity attempt = AssessmentAttemptEntity.builder()
                 .assessmentId(assessment.getId())
@@ -497,72 +259,7 @@ public class AssessmentService {
                 .build();
         assessment = assessmentRepository.save(assessment);
 
-        List<AssessmentQuestionDto> dtoList = new ArrayList<>();
-        int order = 1;
-
-        for (Map<String, Object> q : chosen) {
-            UUID qId = UUID.fromString((String) q.get("id"));
-            UUID sId = q.get("skillId") != null ? UUID.fromString((String) q.get("skillId")) : request.getSubjectId();
-            String sName = ENGLISH_SKILLS.getOrDefault(sId, "Kiến thức tổng hợp");
-            String content = (String) q.get("content");
-            String difficulty = (String) q.getOrDefault("difficulty", "MEDIUM");
-            String explanation = (String) q.getOrDefault("explanation", "");
-
-            List<Map<String, Object>> rawOptions = (List<Map<String, Object>>) q.get("options");
-            UUID correctOptId = null;
-
-            List<OptionDto> clientOptions = new ArrayList<>();
-            if (rawOptions != null) {
-                for (Map<String, Object> opt : rawOptions) {
-                    UUID optId = UUID.fromString((String) opt.get("id"));
-                    String optContent = (String) opt.get("optionContent");
-                    Boolean isCorr = Boolean.TRUE.equals(opt.get("isCorrect"));
-                    if (isCorr) {
-                        correctOptId = optId;
-                    }
-                    clientOptions.add(OptionDto.builder()
-                            .id(optId)
-                            .optionContent(optContent)
-                            .build());
-                }
-            }
-
-            Collections.shuffle(clientOptions);
-
-            String optionsJson = "";
-            try {
-                optionsJson = objectMapper.writeValueAsString(clientOptions);
-            } catch (Exception e) {
-                log.error("Error serializing options", e);
-            }
-
-            AssessmentQuestionEntity qEntity = AssessmentQuestionEntity.builder()
-                    .assessmentId(assessment.getId())
-                    .questionId(qId)
-                    .skillId(sId)
-                    .skillName(sName)
-                    .content(content)
-                    .difficulty(difficulty)
-                    .optionsJson(optionsJson)
-                    .correctOptionId(correctOptId != null ? correctOptId : UUID.randomUUID())
-                    .explanation(explanation)
-                    .displayOrder(order)
-                    .build();
-            assessmentQuestionRepository.save(qEntity);
-
-            dtoList.add(AssessmentQuestionDto.builder()
-                    .id(qEntity.getId())
-                    .questionId(qId)
-                    .skillId(sId)
-                    .skillName(sName)
-                    .content(content)
-                    .difficulty(difficulty)
-                    .displayOrder(order)
-                    .options(clientOptions)
-                    .build());
-
-            order++;
-        }
+        List<AssessmentQuestionDto> dtoList = saveQuestionsAndBuildDtos(assessment.getId(), chosen, request.getSubjectId(), "Kiến thức tổng hợp");
 
         AssessmentAttemptEntity attempt = AssessmentAttemptEntity.builder()
                 .assessmentId(assessment.getId())
@@ -611,6 +308,7 @@ public class AssessmentService {
         Map<UUID, Integer> weakLessonWrongCount = new LinkedHashMap<>();
         Map<UUID, Integer> lessonTotalCount = new LinkedHashMap<>();
         List<AnswerDetailDto> details = new ArrayList<>();
+        List<AssessmentAnswerEntity> answerEntitiesToSave = new ArrayList<>();
 
         for (AssessmentQuestionEntity q : questions) {
             UUID selectedOpt = answersMap.get(q.getQuestionId());
@@ -628,7 +326,7 @@ public class AssessmentService {
                 }
             }
 
-            // Save individual answer
+            // Buffer individual answer for batch saving
             AssessmentAnswerEntity answerEntity = AssessmentAnswerEntity.builder()
                     .attemptId(attemptId)
                     .questionId(q.getQuestionId())
@@ -636,7 +334,7 @@ public class AssessmentService {
                     .correctOptionId(q.getCorrectOptionId())
                     .isCorrect(isCorrect)
                     .build();
-            assessmentAnswerRepository.save(answerEntity);
+            answerEntitiesToSave.add(answerEntity);
 
             // Group by skill
             skillAccuracyMap.computeIfAbsent(q.getSkillId(), k -> new ArrayList<>()).add(isCorrect);
@@ -656,7 +354,7 @@ public class AssessmentService {
 
         int totalQ = questions.size();
         int accuracy = totalQ > 0 ? Math.round((float) totalScore * 100 / totalQ) : 0;
-        int passing = assessment.getPassingScorePercentage() != null ? assessment.getPassingScorePercentage() : 80;
+        int passing = assessment.getPassingScorePercentage() != null ? assessment.getPassingScorePercentage() : 60;
         boolean passed = accuracy >= passing;
 
         attempt.setSubmittedAt(Instant.now());
@@ -680,6 +378,7 @@ public class AssessmentService {
 
         // Build skill breakdown
         List<SkillResultDto> breakdown = new ArrayList<>();
+        List<SkillAssessmentResultEntity> skillEntitiesToSave = new ArrayList<>();
         for (Map.Entry<UUID, List<Boolean>> entry : skillAccuracyMap.entrySet()) {
             UUID sId = entry.getKey();
             List<Boolean> list = entry.getValue();
@@ -705,7 +404,7 @@ public class AssessmentService {
                     .accuracyPercentage(sAcc)
                     .proficiencyLevel(prof)
                     .build();
-            skillAssessmentResultRepository.save(skillRes);
+            skillEntitiesToSave.add(skillRes);
 
             breakdown.add(SkillResultDto.builder()
                     .skillId(sId)
@@ -716,6 +415,9 @@ public class AssessmentService {
                     .proficiencyLevel(prof)
                     .build());
         }
+
+        assessmentAnswerRepository.saveAll(answerEntitiesToSave);
+        skillAssessmentResultRepository.saveAll(skillEntitiesToSave);
 
         return AssessmentResultDto.builder()
                 .attemptId(attempt.getId())
@@ -953,5 +655,165 @@ public class AssessmentService {
             log.warn("Error fetching lessons for topic {}: {}", topicId, e.getMessage());
         }
         return Collections.emptyList();
+    }
+
+    private void resolveLessonsForTopicQuestions(List<Map<String, Object>> chosen, List<Map<String, Object>> topicLessons) {
+        int order = 1;
+        for (Map<String, Object> q : chosen) {
+            String content = (String) q.get("content");
+            String explanation = (String) q.getOrDefault("explanation", "");
+
+            UUID lessonId = null;
+            String lessonTitle = null;
+            if (q.get("lessonId") != null) {
+                try {
+                    lessonId = UUID.fromString(q.get("lessonId").toString());
+                } catch (Exception ignored) {}
+            }
+            if (lessonId != null && !topicLessons.isEmpty()) {
+                for (Map<String, Object> l : topicLessons) {
+                    if (lessonId.toString().equals(String.valueOf(l.get("id")))) {
+                        lessonTitle = (String) l.get("title");
+                        break;
+                    }
+                }
+            }
+            if ((lessonId == null || lessonTitle == null) && !topicLessons.isEmpty()) {
+                String text = ((content != null ? content : "") + " " + (explanation != null ? explanation : "")).toLowerCase();
+                for (Map<String, Object> l : topicLessons) {
+                    String lt = (String) l.get("title");
+                    if (lt == null) continue;
+                    String ltl = lt.toLowerCase();
+                    if ((ltl.contains("present perfect") && (text.contains("present perfect") || text.contains("hiện tại hoàn thành")))
+                            || (ltl.contains("past perfect") && (text.contains("past perfect") || text.contains("quá khứ hoàn thành")))
+                            || (ltl.contains("past simple") && (text.contains("past simple") || text.contains("quá khứ đơn")))
+                            || (ltl.contains("present simple") && (text.contains("present simple") || text.contains("hiện tại đơn")))
+                            || (ltl.contains("tiếp diễn") && text.contains("tiếp diễn"))
+                            || (ltl.contains("loại 0") && text.contains("loại 0"))
+                            || (ltl.contains("loại 1") && text.contains("loại 1"))
+                            || (ltl.contains("loại 2") && text.contains("loại 2"))
+                            || (ltl.contains("collocation") && text.contains("collocation"))
+                            || (ltl.contains("cấu tạo từ") && text.contains("cấu tạo từ"))
+                            || (ltl.contains("phrasal") && text.contains("phrasal"))) {
+                        lessonId = UUID.fromString((String) l.get("id"));
+                        lessonTitle = lt;
+                        break;
+                    }
+                }
+                if (lessonId == null && !topicLessons.isEmpty()) {
+                    Map<String, Object> fallback = topicLessons.get((order - 1) % topicLessons.size());
+                    lessonId = UUID.fromString((String) fallback.get("id"));
+                    lessonTitle = (String) fallback.get("title");
+                }
+            }
+            if (lessonId != null) {
+                q.put("lessonId", lessonId.toString());
+                q.put("lessonTitle", lessonTitle);
+            }
+            order++;
+        }
+    }
+
+    private List<AssessmentQuestionDto> saveQuestionsAndBuildDtos(
+            UUID assessmentId,
+            List<Map<String, Object>> questions,
+            UUID defaultSkillId,
+            String defaultSkillName
+    ) {
+        List<AssessmentQuestionEntity> entitiesToSave = new ArrayList<>();
+        List<AssessmentQuestionDto> dtoList = new ArrayList<>();
+        int order = 1;
+
+        for (Map<String, Object> q : questions) {
+            UUID qId = UUID.fromString((String) q.get("id"));
+            UUID sId = q.get("skillId") != null ? UUID.fromString((String) q.get("skillId")) : defaultSkillId;
+            String sName = (String) q.getOrDefault("resolvedSkillName", q.getOrDefault("skillName", defaultSkillName != null ? defaultSkillName : "Tiếng Anh"));
+            UUID lessonId = null;
+            if (q.get("lessonId") != null) {
+                try {
+                    lessonId = UUID.fromString(q.get("lessonId").toString());
+                } catch (Exception ignored) {}
+            }
+            String lessonTitle = (String) q.get("lessonTitle");
+            UUID topicId = null;
+            if (q.get("topicId") != null) {
+                try {
+                    topicId = UUID.fromString(q.get("topicId").toString());
+                } catch (Exception ignored) {}
+            }
+            if (topicId == null) {
+                topicId = sId;
+            }
+
+            String content = (String) q.get("content");
+            String difficulty = (String) q.getOrDefault("difficulty", "MEDIUM");
+            String explanation = (String) q.getOrDefault("explanation", "");
+
+            List<Map<String, Object>> rawOptions = (List<Map<String, Object>>) q.get("options");
+            UUID correctOptId = null;
+
+            List<OptionDto> clientOptions = new ArrayList<>();
+            if (rawOptions != null) {
+                for (Map<String, Object> opt : rawOptions) {
+                    UUID optId = UUID.fromString((String) opt.get("id"));
+                    String optContent = (String) opt.get("optionContent");
+                    Boolean isCorr = Boolean.TRUE.equals(opt.get("isCorrect"));
+                    if (isCorr) {
+                        correctOptId = optId;
+                    }
+                    clientOptions.add(OptionDto.builder()
+                            .id(optId)
+                            .optionContent(optContent)
+                            .build());
+                }
+            }
+
+            Collections.shuffle(clientOptions);
+
+            String optionsJson = "";
+            try {
+                optionsJson = objectMapper.writeValueAsString(clientOptions);
+            } catch (Exception e) {
+                log.error("Error serializing options", e);
+            }
+
+            AssessmentQuestionEntity qEntity = AssessmentQuestionEntity.builder()
+                    .assessmentId(assessmentId)
+                    .questionId(qId)
+                    .skillId(sId)
+                    .skillName(sName)
+                    .lessonId(lessonId)
+                    .lessonTitle(lessonTitle)
+                    .content(content)
+                    .difficulty(difficulty)
+                    .optionsJson(optionsJson)
+                    .correctOptionId(correctOptId != null ? correctOptId : UUID.randomUUID())
+                    .explanation(explanation)
+                    .displayOrder(order)
+                    .build();
+            entitiesToSave.add(qEntity);
+
+            dtoList.add(AssessmentQuestionDto.builder()
+                    .questionId(qId)
+                    .topicId(topicId)
+                    .skillId(sId)
+                    .skillName(sName)
+                    .lessonId(lessonId)
+                    .lessonTitle(lessonTitle)
+                    .content(content)
+                    .difficulty(difficulty)
+                    .displayOrder(order)
+                    .options(clientOptions)
+                    .build());
+
+            order++;
+        }
+
+        List<AssessmentQuestionEntity> saved = assessmentQuestionRepository.saveAll(entitiesToSave);
+        for (int i = 0; i < saved.size() && i < dtoList.size(); i++) {
+            dtoList.get(i).setId(saved.get(i).getId());
+        }
+
+        return dtoList;
     }
 }
