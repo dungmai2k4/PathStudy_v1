@@ -1,5 +1,5 @@
 export const ENGLISH_SUBJECT_ID = '11111111-1111-1111-1111-111111111101';
-export const FONT = "'Times New Roman', Times, Georgia, serif";
+export const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
 export const formatDateTime = (att) => {
   const ts = att?.submittedAt || att?.createdAt || att?.startedAt;

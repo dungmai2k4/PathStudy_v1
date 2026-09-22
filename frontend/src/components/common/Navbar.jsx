@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { BookOpen, Sparkles, User, LogOut, Award, ShieldCheck, FolderKanban, HelpCircle, Crown } from 'lucide-react';
+import { BookOpen, User, LogOut, Award, ShieldCheck, FolderKanban, HelpCircle, Crown } from 'lucide-react';
 
 export default function Navbar() {
   const { user, isPro, logout } = useAuth();
@@ -58,7 +58,7 @@ export default function Navbar() {
     homeUrl = '/';
     navLinks = [
       { label: 'Tổng quan', to: '/', isActive: pathname === '/' },
-      { label: 'Lộ trình học', to: '/study-path/english', isActive: pathname.startsWith('/study-path') },
+      { label: 'Lộ trình học', to: '/study-path', isActive: pathname.startsWith('/study-path') },
       { label: 'Môn học', to: '/subjects', isActive: pathname.startsWith('/subjects') },
       { label: 'Hồ sơ học tập', to: '/profile', isActive: pathname.startsWith('/profile') },
     ];
@@ -71,15 +71,15 @@ export default function Navbar() {
             to: '/subscription',
             isActive: pathname.startsWith('/subscription'),
             icon: Crown,
-            iconClass: 'text-amber-500',
-            isProBadge: true, // dùng để style riêng
+            iconClass: 'text-amber-600',
+            isProBadge: true,
           }
         : {
             label: 'Gói Pro',
             to: '/subscription',
             isActive: pathname.startsWith('/subscription'),
-            icon: Sparkles,
-            iconClass: 'text-amber-500',
+            icon: Award,
+            iconClass: 'text-slate-500',
           }
     );
   }
@@ -152,47 +152,25 @@ export default function Navbar() {
                 <span>CONTENT MANAGER</span>
               </div>
             ) : isPro ? (
-              /* Badge PRO nổi bật với gradient và shimmer animation */
-              <div
-                className="relative hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)',
-                  color: '#fff',
-                  boxShadow: '0 2px 8px rgba(245,158,11,0.4)',
-                }}
-              >
-                {/* Shimmer overlay */}
-                <span
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background:
-                      'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%)',
-                    backgroundSize: '200% 100%',
-                    animation: 'navbar-shimmer 2.4s linear infinite',
-                  }}
-                />
-                <Crown className="w-3.5 h-3.5 relative z-10" style={{ color: '#fef3c7' }} />
-                <span className="relative z-10 tracking-wide">PRO</span>
+              <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                <Crown className="w-3.5 h-3.5 text-amber-600" />
+                <span>PRO</span>
               </div>
             ) : (
               <Link
                 to="/subscription"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-xs"
+                className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                Nâng cấp Pro
+                <span>Nâng cấp Pro</span>
               </Link>
             )}
 
             <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
               <div className="flex items-center gap-2">
-                {/* Avatar – viền vàng nếu là Pro */}
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
                     isPro
-                      ? 'bg-amber-100 border-2 border-amber-400 text-amber-700'
+                      ? 'bg-amber-50 border border-amber-200 text-amber-700'
                       : 'bg-slate-100 border border-slate-200 text-slate-600'
                   }`}
                 >
@@ -204,7 +182,7 @@ export default function Navbar() {
                 </div>
                 <div className="hidden sm:block text-left">
                   <div className="text-xs font-semibold text-slate-800 leading-tight">{user?.username}</div>
-                  <div className={`text-[11px] font-medium leading-tight ${isPro ? 'text-amber-600' : 'text-slate-500'}`}>
+                  <div className={`text-[11px] font-medium leading-tight ${isPro ? 'text-amber-700 font-semibold' : 'text-slate-500'}`}>
                     {roleLabel}
                   </div>
                 </div>
@@ -221,14 +199,6 @@ export default function Navbar() {
           </div>
         </div>
       </div>
-
-      {/* Keyframe for shimmer animation – injected once via a style tag */}
-      <style>{`
-        @keyframes navbar-shimmer {
-          0%   { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-      `}</style>
     </header>
   );
 }
