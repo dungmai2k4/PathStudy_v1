@@ -77,8 +77,18 @@ Truy cập giao diện tại: `http://localhost:5173`
 
 ---
 
-## 4. Tài Khoản Demo Để Thử Nghiệm
-- **Tên đăng nhập:** `student_demo`
-- **Mật khẩu:** `Password123@`
-- **Khối lớp:** Khối 11 (Lớp 11A3)
-- **Gói dịch vụ:** Đã nâng cấp thành viên **PRO**
+## 4. Tài Khoản Thử Nghiệm Hệ Thống
+
+| Vai trò | Tên đăng nhập | Mật khẩu | Ghi chú |
+| :--- | :--- | :--- | :--- |
+| **Quản trị viên (Admin)** | `admin` | `Admin@123` | Quản lý người dùng, phân quyền toàn hệ thống |
+| **Học sinh Demo** | `student_demo` | `Admin@123` | Học sinh Khối 11 (Lớp 11B2) |
+| **Học sinh Gói PRO** | `student` | `Admin@123` | Học sinh Khối 12, gói Pro còn hạn |
+| **Quản lý Chuyên môn** | `manager1` - `manager5` | `Manager@123` | Ban Quản lý Ngữ pháp, Từ vựng, Đề thi, Lộ trình |
+
+---
+
+## 5. Tên Miền Truy Cập Internet Trực Tiếp
+- **Website chính thức:** [https://pathstudy.id.vn](https://pathstudy.id.vn) (hoặc [https://www.pathstudy.id.vn](https://www.pathstudy.id.vn))
+- Được kết nối bảo mật SSL thông qua Cloudflare Tunnel.
+- Để duy trì kết nối online từ máy chủ/máy trạm, chỉ cần chạy file `start-cloud-tunnel.bat`.
