@@ -4,6 +4,8 @@ import {
   Users, UserCheck, UserX, Shield, Search, Plus, 
   RefreshCw, CheckCircle, AlertCircle, Edit, Lock, Unlock, X 
 } from 'lucide-react';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState([]);
@@ -133,35 +135,32 @@ export default function UserManagementPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Shield className="w-7 h-7 text-indigo-600" />
-            <span>Quản trị Người dùng & Phân quyền</span>
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Quản lý danh sách tài khoản, kiểm soát trạng thái truy cập và phân công vai trò trong hệ thống
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={loadUsers}
-            disabled={loading}
-            className="p-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-2xs"
-            title="Làm mới danh sách"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-xs transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Thêm tài khoản mới</span>
-          </button>
-        </div>
-      </div>
+      {/* Console Page Header */}
+      <PageHeader
+        title="Quản Trị Người Dùng & Phân Quyền"
+        description="Kiểm soát toàn diện danh sách tài khoản học sinh, quản lý và phân quyền hệ thống."
+        icon={Shield}
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadUsers}
+              disabled={loading}
+              className="p-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+              title="Làm mới danh sách"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              icon={Plus}
+            >
+              Thêm tài khoản mới
+            </Button>
+          </div>
+        }
+      />
 
       {/* Notifications */}
       {successMsg && (
@@ -192,45 +191,45 @@ export default function UserManagementPage() {
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
               <UserCheck className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Học sinh (Student)</div>
-              <div className="text-xl font-bold text-blue-600">{studentCount}</div>
+              <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Học sinh (Student)</div>
+              <div className="text-xl font-bold text-slate-900">{studentCount}</div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
               <Shield className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Quản lý (Manager)</div>
-              <div className="text-xl font-bold text-amber-600">{managerCount}</div>
+              <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Quản lý (Manager)</div>
+              <div className="text-xl font-bold text-slate-900">{managerCount}</div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
               <CheckCircle className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đang hoạt động</div>
-              <div className="text-xl font-bold text-emerald-600">{activeCount}</div>
+              <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Đang hoạt động</div>
+              <div className="text-xl font-bold text-slate-900">{activeCount}</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row gap-4 justify-between items-center">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row gap-4 justify-between items-center">
         <form onSubmit={handleSearchSubmit} className="relative w-full md:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input

@@ -7,7 +7,6 @@ import {
   Compass,
   CheckCircle,
   Clock,
-  Sparkles,
   ArrowRight,
   GraduationCap,
   BookOpen,
@@ -19,6 +18,7 @@ import {
   Play,
   CheckCircle2,
   X,
+  Sparkles,
 } from 'lucide-react';
 
 const SUBJECTS_CAROUSEL = [
@@ -26,7 +26,7 @@ const SUBJECTS_CAROUSEL = [
     code: 'english',
     name: 'Tiếng Anh THPT',
     desc: 'Luyện tập ngữ pháp trọng điểm, thì động từ, câu điều kiện, bị động và kỹ năng đọc hiểu chuyên sâu theo đề thi THPT Quốc gia.',
-    color: 'from-indigo-600 to-purple-600',
+    color: 'from-slate-900 via-indigo-950 to-indigo-900',
     accentColor: 'bg-indigo-50 text-indigo-700 border-indigo-100',
     icon: 'BookOpen',
     ready: true,
@@ -35,8 +35,8 @@ const SUBJECTS_CAROUSEL = [
     code: 'math',
     name: 'Toán Học THPT',
     desc: 'Hàm số, hình học không gian, tích phân, xác suất thống kê và phương pháp giải nhanh trắc nghiệm.',
-    color: 'from-blue-600 to-cyan-600',
-    accentColor: 'bg-blue-50 text-blue-700 border-blue-100',
+    color: 'from-slate-900 via-slate-800 to-sky-950',
+    accentColor: 'bg-sky-50 text-sky-700 border-sky-100',
     icon: 'Layers',
     ready: false,
   },
@@ -44,8 +44,8 @@ const SUBJECTS_CAROUSEL = [
     code: 'literature',
     name: 'Ngữ Văn THPT',
     desc: 'Kỹ năng đọc hiểu văn bản, nghị luận xã hội và nghị luận văn học phân tích tác phẩm kinh điển.',
-    color: 'from-rose-600 to-orange-600',
-    accentColor: 'bg-rose-50 text-rose-700 border-rose-100',
+    color: 'from-slate-900 via-slate-800 to-indigo-950',
+    accentColor: 'bg-slate-100 text-slate-700 border-slate-200',
     icon: 'BookOpen',
     ready: false,
   },
@@ -53,8 +53,8 @@ const SUBJECTS_CAROUSEL = [
     code: 'physics',
     name: 'Vật Lý THPT',
     desc: 'Dao động cơ học, sóng cơ và sóng âm, dòng điện xoay chiều, dao động điện từ và vật lý hạt nhân.',
-    color: 'from-amber-600 to-emerald-600',
-    accentColor: 'bg-amber-50 text-amber-700 border-amber-100',
+    color: 'from-slate-900 via-sky-950 to-slate-900',
+    accentColor: 'bg-slate-100 text-slate-700 border-slate-200',
     icon: 'Compass',
     ready: false,
   },
@@ -62,8 +62,8 @@ const SUBJECTS_CAROUSEL = [
     code: 'chemistry',
     name: 'Hóa Học THPT',
     desc: 'Este - Lipit, Cacbohiđrat, Amin - Amino axit - Peptit, đại cương kim loại và hóa học ứng dụng.',
-    color: 'from-teal-600 to-emerald-600',
-    accentColor: 'bg-teal-50 text-teal-700 border-teal-100',
+    color: 'from-slate-900 via-slate-800 to-slate-900',
+    accentColor: 'bg-slate-100 text-slate-700 border-slate-200',
     icon: 'Award',
     ready: false,
   },
@@ -127,49 +127,44 @@ export default function StudentDashboard() {
   const activeSubject = SUBJECTS_CAROUSEL[currentSlide];
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-7 border border-slate-800 shadow-sm">
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-indigo-200 mb-3">
+    <div className="space-y-5">
+      {/* Clean Modern Welcome Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 mb-0.5">
             <GraduationCap className="w-3.5 h-3.5" />
             <span>
               {profile?.grade
-                ? `Học sinh Khối ${profile.grade}${profile.className ? ` (${profile.className})` : ''}`
+                ? `Học sinh Khối ${profile.grade}${profile.className ? ` • Lớp ${profile.className}` : ''}`
                 : 'Học sinh THPT'}
             </span>
           </div>
-
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Xin chào, {profile?.fullName || user?.fullName || user?.username}! 👋
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            Xin chào, {profile?.fullName || user?.fullName || user?.username}!
           </h1>
-          <p className="mt-2 text-slate-300 text-xs sm:text-sm leading-relaxed">
-            Hệ thống học tập thích ứng (Adaptive Learning) đang theo dõi và tối ưu hóa lộ trình học riêng biệt cho bạn dựa trên năng lực thực tế.
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Theo dõi tiến độ học tập thích ứng và hoàn thành các mục tiêu rèn luyện hôm nay.
           </p>
-
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Link
-              to="/subjects"
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-white font-semibold text-xs sm:text-sm transition"
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>Danh mục Môn học</span>
-            </Link>
-
-            {!isPro && (
-              <Link
-                to="/subscription"
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs sm:text-sm transition shadow-xs"
-              >
-                <Sparkles className="w-4 h-4 text-amber-300" />
-                <span>Nâng cấp Pro mở rộng bài kiểm tra</span>
-              </Link>
-            )}
-          </div>
         </div>
 
-        {/* Decorative background glow */}
-        <div className="absolute -right-12 -bottom-12 w-72 h-72 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/subjects"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+            <span>Danh mục môn học</span>
+          </Link>
+
+          {!isPro && (
+            <Link
+              to="/subscription"
+              className="inline-flex items-center px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-xs transition"
+            >
+              <span>Nâng cấp Pro</span>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* CASE 1: STUDENT HAS ENROLLED STUDY PATHS */}
@@ -251,7 +246,7 @@ export default function StudentDashboard() {
           <div className="p-6 sm:p-7 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-3 max-w-xl">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-semibold">
-                <Sparkles className="w-3.5 h-3.5" />
+                <Compass className="w-3.5 h-3.5" />
                 <span>Khởi tạo Lộ Trình Thích Ứng Cá Nhân</span>
               </div>
 
@@ -267,7 +262,6 @@ export default function StudentDashboard() {
                 onClick={() => setShowSubjectPickerModal(true)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-xs transition cursor-pointer"
               >
-                <Sparkles className="w-4 h-4" />
                 <span>Tạo Lộ Trình Học</span>
                 <ArrowRight className="w-4 h-4" />
               </button>

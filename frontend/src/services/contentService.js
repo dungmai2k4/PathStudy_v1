@@ -1,8 +1,9 @@
 import api from './api';
 
 export const contentService = {
-  getSubjects: async () => {
-    const res = await api.get('/api/v1/content/subjects');
+  getSubjects: async (grade) => {
+    const params = grade ? { grade } : {};
+    const res = await api.get('/api/v1/content/subjects', { params });
     return res.data?.data || [];
   },
 

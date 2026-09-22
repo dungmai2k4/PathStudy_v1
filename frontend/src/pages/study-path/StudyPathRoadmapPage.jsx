@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import adaptiveService from '../../services/adaptiveService';
 import contentService from '../../services/contentService';
-import { RotateCcw, Award } from 'lucide-react';
+import { RotateCcw, Award, Compass, ArrowLeft } from 'lucide-react';
 import TopicItem from '../../components/study-path/TopicItem';
 import LessonContentPanel from '../../components/study-path/LessonContentPanel';
 import TopicTestModal from '../../components/study-path/TopicTestModal';
@@ -14,6 +14,7 @@ import { ENGLISH_SUBJECT_ID, FONT } from '../../components/study-path/studyPathC
 /* ── MAIN PAGE ── */
 export default function StudyPathRoadmapPage() {
   const { user, isPro } = useAuth();
+  const { subjectCode } = useParams();
   const [studyPath, setStudyPath] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -176,25 +177,43 @@ export default function StudyPathRoadmapPage() {
   if (loading && !studyPath) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '80px 0', flexDirection: 'column', gap: 12 }}>
-        <div style={{ width: 32, height: 32, border: '3px solid #d1d5db', borderTopColor: '#374151', borderRadius: '50%' }} className="animate-spin" />
-        <p style={{ fontSize: 13, color: '#6b7280', fontFamily: FONT }}>Đang tải lộ trình học thích ứng...</p>
+        <div style={{ width: 32, height: 32, border: '3px solid #e2e8f0', borderTopColor: '#4f46e5', borderRadius: '50%' }} className="animate-spin" />
+        <p style={{ fontSize: 13, color: '#64748b', fontFamily: FONT }}>Đang tải lộ trình học thích ứng...</p>
       </div>
     );
   }
 
   if (!studyPath || !studyPath.nodes || studyPath.nodes.length === 0) {
+    const subjectDisplayName = subjectCode
+      ? (subjectCode.toLowerCase() === 'english' ? 'Tiếng Anh 10' : subjectCode.toUpperCase())
+      : 'môn học';
+
     return (
-      <div style={{ maxWidth: 480, margin: '80px auto', textAlign: 'center', fontFamily: FONT }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 12 }}>Chưa có lộ trình học cho môn Tiếng Anh</h2>
-        <p style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.65, marginBottom: 24 }}>
-          Thực hiện bài khảo sát đánh giá năng lực để hệ thống AI tự động sắp xếp lộ trình phù hợp theo Module & Chủ đề.
+      <div style={{ maxWidth: 520, margin: '60px auto', textAlign: 'center', fontFamily: FONT, background: '#fff', padding: '40px 32px', borderRadius: 20, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
+        <div style={{ width: 48, height: 48, borderRadius: 12, background: '#eef2ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <Compass style={{ width: 24, height: 24 }} />
+        </div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>
+          Chưa có lộ trình học cho môn {subjectDisplayName}
+        </h2>
+        <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.65, marginBottom: 24 }}>
+          Bạn chưa thực hiện bài khảo sát năng lực ban đầu cho môn học này. Hãy hoàn thành khảo sát 12 phút để hệ thống AI phân tích và xây dựng lộ trình học thích ứng dành riêng cho bạn.
         </p>
-        <Link
-          to="/assessment/placement"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 22px', background: '#1f2937', color: '#fff', fontSize: 14, fontWeight: 600, textDecoration: 'none', fontFamily: FONT }}
-        >
-          Bắt đầu bài khảo sát năng lực
-        </Link>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', justifyContent: 'center' }}>
+          <Link
+            to={`/assessment/placement?subjectId=${ENGLISH_SUBJECT_ID}`}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 24px', background: '#4f46e5', color: '#fff', fontSize: 14, fontWeight: 600, textDecoration: 'none', borderRadius: 10, fontFamily: FONT, width: '100%', maxWidth: 300 }}
+          >
+            Bắt đầu bài khảo sát năng lực
+          </Link>
+          <Link
+            to="/study-path"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 20px', background: '#f8fafc', color: '#475569', fontSize: 13, fontWeight: 600, textDecoration: 'none', borderRadius: 8, border: '1px solid #e2e8f0', fontFamily: FONT }}
+          >
+            <ArrowLeft style={{ width: 14, height: 14 }} />
+            <span>Chọn môn học khác</span>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -254,13 +273,13 @@ export default function StudyPathRoadmapPage() {
   }
 
   return (
-    <div style={{ display: 'flex', width: '100%', height: 'calc(100vh - 64px)', fontFamily: FONT, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', width: '100%', height: 'calc(100vh - 56px)', fontFamily: FONT, overflow: 'hidden' }}>
       {/* SIDEBAR: MODULE & TOPIC TREE */}
       <aside
         style={{
-          width: 310,
-          minWidth: 310,
-          borderRight: '1px solid #e5e7eb',
+          width: 320,
+          minWidth: 320,
+          borderRight: '1px solid #e2e8f0',
           background: '#fff',
           display: 'flex',
           flexDirection: 'column',
@@ -268,21 +287,30 @@ export default function StudyPathRoadmapPage() {
           overflowY: 'auto',
         }}
       >
-        {/* Header */}
-        <div style={{ padding: '16px 14px 12px', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}>
-          <div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
+        {/* Focused Professional Learning Header */}
+        <div className="p-4 border-b border-slate-200 shrink-0 bg-white">
+          <Link
+            to="/study-path"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition mb-2"
+          >
+            ← Danh sách lộ trình
+          </Link>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
             Lộ trình học thích ứng
           </div>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 10, lineHeight: 1.3 }}>
+          <h2 className="text-base font-bold text-slate-900 mb-2 leading-tight">
             Tiếng Anh THPT
           </h2>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
-              <span>{done}/{nodes.length} chủ đề</span>
-              <span style={{ fontWeight: 700 }}>{pct}%</span>
+            <div className="flex justify-between text-xs text-slate-500 mb-1.5 font-medium">
+              <span>{done}/{nodes.length} chủ đề đạt chuẩn</span>
+              <span className={`font-bold ${pct === 100 ? 'text-emerald-600' : 'text-indigo-600'}`}>{pct}%</span>
             </div>
-            <div style={{ height: 4, background: '#e5e7eb', width: '100%' }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#16a34a' : '#374151', transition: 'width 0.5s' }} />
+            <div className="h-1.5 bg-slate-100 w-full rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-600' : 'bg-indigo-600'}`}
+                style={{ width: `${pct}%` }}
+              />
             </div>
           </div>
         </div>
@@ -358,17 +386,17 @@ export default function StudyPathRoadmapPage() {
           )}
 
           {/* COURSE FINAL TEST BUTTON IN SIDEBAR */}
-          <div style={{ padding: '12px 14px', borderTop: '1px solid #e5e7eb', background: allCompleted ? '#f0fdf4' : '#fafafa' }}>
+          <div style={{ padding: '12px 14px', borderTop: '1px solid #e2e8f0', background: allCompleted ? '#f0fdf4' : '#fff' }}>
             <button
               onClick={() => setShowCourseTestModal(true)}
               style={{
                 width: '100%',
-                padding: '8px 12px',
-                background: allCompleted ? '#16a34a' : '#f1f5f9',
-                border: allCompleted ? '1px solid #15803d' : '1px dashed #cbd5e1',
-                color: allCompleted ? '#fff' : '#475569',
-                borderRadius: 4,
-                cursor: 'pointer',
+                padding: '9px 12px',
+                background: allCompleted ? '#059669' : '#f8fafc',
+                border: allCompleted ? '1px solid #047857' : '1px solid #e2e8f0',
+                color: allCompleted ? '#fff' : '#64748b',
+                borderRadius: 8,
+                cursor: allCompleted ? 'pointer' : 'not-allowed',
                 fontSize: 12,
                 fontWeight: 700,
                 display: 'flex',
@@ -378,25 +406,25 @@ export default function StudyPathRoadmapPage() {
                 fontFamily: FONT,
               }}
             >
-              <Award size={13} color={allCompleted ? '#fff' : '#64748b'} />
+              <Award size={14} color={allCompleted ? '#fff' : '#94a3b8'} />
               {allCompleted ? 'Thi tổng kết môn học' : 'Bài thi tổng kết môn (Khóa)'}
             </button>
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '10px 14px', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
+        <div style={{ padding: '10px 14px', borderTop: '1px solid #e2e8f0', flexShrink: 0 }}>
           <Link
             to="/assessment/placement"
-            style={{ fontSize: 11, color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+            style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
           >
-            <RotateCcw size={10} /> Làm lại bài khảo sát đầu vào
+            <RotateCcw size={11} /> Làm lại bài khảo sát đầu vào
           </Link>
         </div>
       </aside>
 
       {/* MAIN CONTENT PANEL */}
-      <div style={{ flex: 1, padding: '28px 36px', background: '#fafafa', overflowY: 'auto', height: '100%' }}>
+      <div style={{ flex: 1, padding: '28px 36px', background: '#f8fafc', overflowY: 'auto', height: '100%' }}>
         {loadingLesson ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '80px 0', flexDirection: 'column', gap: 12 }}>
             <div style={{ width: 28, height: 28, border: '3px solid #d1d5db', borderTopColor: '#374151', borderRadius: '50%' }} className="animate-spin" />

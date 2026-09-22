@@ -8,7 +8,6 @@ import {
   CheckCircle,
   AlertTriangle,
   Award,
-  Sparkles,
   ArrowRight,
   ArrowLeft,
   Check,
@@ -284,7 +283,7 @@ export default function PlacementTestPage() {
 
           {/* Explanation Alert */}
           <div className="p-3.5 rounded-lg bg-indigo-50/80 border border-indigo-200 text-indigo-950 text-xs sm:text-sm leading-relaxed flex items-start gap-2.5">
-            <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+            <HelpCircle className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
             <div>
               <strong className="font-bold text-indigo-900">Chiến lược Cá nhân hóa Thích ứng: </strong>
               Khi bạn bấm nút "Tạo Lộ trình Học Cá Nhân", hệ thống sẽ đảo thứ tự lộ trình học, đưa các kỹ năng có kết quả dưới 80% lên vị trí bài học ưu tiên để củng cố ngay lập tức. Sau mỗi kỹ năng, bạn sẽ làm 1 bài kiểm tra kỹ năng (đạt ≥80%) để mở khóa bài học kế tiếp!
@@ -312,7 +311,6 @@ export default function PlacementTestPage() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
                   <span>Tạo Lộ Trình Học Cá Nhân</span>
                   <ArrowRight className="w-4 h-4" />
                 </>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { BookOpen, LogIn, AlertCircle } from 'lucide-react';
 
@@ -11,6 +11,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const location = useLocation();
+  const query = new URLSearchParams(location.search);
+  const redirectTarget = query.get('redirect');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,7 +29,12 @@ export default function LoginPage() {
       } else if (roles.includes('MANAGER')) {
         navigate('/manager');
       } else {
-        navigate('/');
+        // Student: redirect to intended flow or dashboard
+        if (redirectTarget && redirectTarget.startsWith('/')) {
+          navigate(redirectTarget);
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Tài khoản hoặc mật khẩu không chính xác.';
@@ -62,6 +71,7 @@ export default function LoginPage() {
                 Tên đăng nhập
               </label>
               <input
+                id="login-username"
                 type="text"
                 required
                 value={username}
@@ -76,6 +86,7 @@ export default function LoginPage() {
                 Mật khẩu
               </label>
               <input
+                id="login-password"
                 type="password"
                 required
                 value={password}
@@ -86,6 +97,7 @@ export default function LoginPage() {
             </div>
 
             <button
+              id="login-submit-btn"
               type="submit"
               disabled={loading}
               className="w-full py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-xs transition duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"

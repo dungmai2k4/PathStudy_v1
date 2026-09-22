@@ -2,8 +2,9 @@ import api from './api';
 
 const managerService = {
   // --- Subject APIs ---
-  getSubjects: async () => {
-    const response = await api.get('/api/v1/content/subjects');
+  getSubjects: async (grade) => {
+    const params = grade ? { grade } : {};
+    const response = await api.get('/api/v1/content/subjects', { params });
     return response.data.data;
   },
 
@@ -22,28 +23,55 @@ const managerService = {
     return response.data;
   },
 
-  // --- Skill APIs ---
-  getSkillsBySubject: async (subjectId) => {
-    const response = await api.get(`/api/v1/content/subjects/${subjectId}/skills`);
+  // --- Module APIs ---
+  getModulesBySubject: async (subjectId) => {
+    const response = await api.get(`/api/v1/content/subjects/${subjectId}/modules`);
     return response.data.data;
   },
 
-  createSkill: async (data) => {
-    const response = await api.post('/api/v1/content/skills', data);
+  createModule: async (data) => {
+    const response = await api.post('/api/v1/content/modules', data);
     return response.data.data;
   },
 
-  updateSkill: async (id, data) => {
-    const response = await api.put(`/api/v1/content/skills/${id}`, data);
+  updateModule: async (id, data) => {
+    const response = await api.put(`/api/v1/content/modules/${id}`, data);
     return response.data.data;
   },
 
-  deleteSkill: async (id) => {
-    const response = await api.delete(`/api/v1/content/skills/${id}`);
+  deleteModule: async (id) => {
+    const response = await api.delete(`/api/v1/content/modules/${id}`);
+    return response.data;
+  },
+
+  // --- Topic APIs ---
+  getTopicsByModule: async (moduleId) => {
+    const response = await api.get(`/api/v1/content/modules/${moduleId}/topics`);
+    return response.data.data;
+  },
+
+  createTopic: async (data) => {
+    const response = await api.post('/api/v1/content/topics', data);
+    return response.data.data;
+  },
+
+  updateTopic: async (id, data) => {
+    const response = await api.put(`/api/v1/content/topics/${id}`, data);
+    return response.data.data;
+  },
+
+  deleteTopic: async (id) => {
+    const response = await api.delete(`/api/v1/content/topics/${id}`);
     return response.data;
   },
 
   // --- Lesson APIs ---
+  getLessonsByTopic: async (topicId) => {
+    const response = await api.get(`/api/v1/content/topics/${topicId}/lessons`);
+    return response.data.data;
+  },
+
+  // Legacy: get lessons by skill (kept for backward compatibility)
   getLessonsBySkill: async (skillId) => {
     const response = await api.get(`/api/v1/content/skills/${skillId}/lessons`);
     return response.data.data;
@@ -61,6 +89,27 @@ const managerService = {
 
   deleteLesson: async (id) => {
     const response = await api.delete(`/api/v1/content/lessons/${id}`);
+    return response.data;
+  },
+
+  // --- Skill APIs (Legacy - kept for backward compatibility) ---
+  getSkillsBySubject: async (subjectId) => {
+    const response = await api.get(`/api/v1/content/subjects/${subjectId}/skills`);
+    return response.data.data;
+  },
+
+  createSkill: async (data) => {
+    const response = await api.post('/api/v1/content/skills', data);
+    return response.data.data;
+  },
+
+  updateSkill: async (id, data) => {
+    const response = await api.put(`/api/v1/content/skills/${id}`, data);
+    return response.data.data;
+  },
+
+  deleteSkill: async (id) => {
+    const response = await api.delete(`/api/v1/content/skills/${id}`);
     return response.data;
   },
 

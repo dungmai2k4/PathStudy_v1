@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
 import paymentService from '../../services/paymentService';
 import VietQRPaymentModal from '../../components/payment/VietQRPaymentModal';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
 import {
-  Sparkles,
   Check,
   Award,
   AlertCircle,
@@ -19,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function SubscriptionPage() {
+  const navigate = useNavigate();
   const { user, isPro, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState('plans'); // 'plans' | 'history'
   const [plans, setPlans] = useState([]);
@@ -62,6 +65,10 @@ export default function SubscriptionPage() {
   };
 
   const handleTabChange = (tab) => {
+    if (tab === 'history' && !user) {
+      navigate('/login?redirect=/subscription');
+      return;
+    }
     setActiveTab(tab);
     if (tab === 'history') {
       loadOrders();
@@ -70,6 +77,11 @@ export default function SubscriptionPage() {
 
   // Tạo đơn hàng thanh toán VietQR
   const handleCreateOrder = async (planCode) => {
+    if (!user) {
+      navigate('/login?redirect=/subscription');
+      return;
+    }
+
     // Kiểm tra nhanh phía client
     if (user?.activePlanCodes?.includes(planCode)) {
       setError('Bạn hiện đang sử dụng gói này và chưa hết hạn. Không thể mua trùng lặp!');
@@ -91,7 +103,7 @@ export default function SubscriptionPage() {
       console.error('Create order error:', err);
       setError(
         err?.response?.data?.message ||
-          'Không thể khởi tạo đơn hàng VietQR. Vui lòng thử lại sau.'
+        'Không thể khởi tạo đơn hàng VietQR. Vui lòng thử lại sau.'
       );
     } finally {
       setCreatingOrder(null);
@@ -136,21 +148,13 @@ export default function SubscriptionPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Header Banner */}
-      <div className="text-center max-w-2xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold mb-2.5">
-          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-          <span>PathStudy Pro Subscription</span>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-          Nâng Cấp Tài Khoản Pro
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1.5 leading-relaxed">
-          Mở khóa toàn diện tiềm năng học tập với các tính năng thích ứng chuyên sâu, kho học liệu
-          nâng cao và không giới hạn lượt thi Retest.
-        </p>
-      </div>
+    <div className="max-w-4xl mx-auto space-y-5">
+      {/* Clean Unified Header */}
+      <PageHeader
+        title="Nâng Cấp Gói Dịch Vụ Pro"
+        description="Mở khóa toàn diện tính năng học tập thích ứng chuyên sâu, bài bổ trợ không giới hạn và phân tích năng lực chi tiết."
+        icon={Award}
+      />
 
       {/* Thông báo Thành viên PRO Hiện tại */}
       {isPro && (
@@ -193,22 +197,20 @@ export default function SubscriptionPage() {
       <div className="flex border-b border-slate-200 gap-6">
         <button
           onClick={() => handleTabChange('plans')}
-          className={`pb-3 text-sm font-semibold flex items-center gap-2 transition cursor-pointer ${
-            activeTab === 'plans'
-              ? 'text-indigo-600 border-b-2 border-indigo-600'
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
+          className={`pb-3 text-sm font-semibold flex items-center gap-2 transition cursor-pointer ${activeTab === 'plans'
+            ? 'text-indigo-600 border-b-2 border-indigo-600'
+            : 'text-slate-500 hover:text-slate-700'
+            }`}
         >
           <QrCode className="w-4 h-4" />
           <span>Gói Pro & Thanh Toán VietQR</span>
         </button>
         <button
           onClick={() => handleTabChange('history')}
-          className={`pb-3 text-sm font-semibold flex items-center gap-2 transition cursor-pointer ${
-            activeTab === 'history'
-              ? 'text-indigo-600 border-b-2 border-indigo-600'
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
+          className={`pb-3 text-sm font-semibold flex items-center gap-2 transition cursor-pointer ${activeTab === 'history'
+            ? 'text-indigo-600 border-b-2 border-indigo-600'
+            : 'text-slate-500 hover:text-slate-700'
+            }`}
         >
           <History className="w-4 h-4" />
           <span>Lịch Sử Đơn Hàng & Hóa Đơn</span>
@@ -229,7 +231,7 @@ export default function SubscriptionPage() {
                   Thanh toán chuyển khoản quét mã VietQR tự động
                 </span>
                 <span className="text-xs text-slate-500">
-                  MB Bank — Số TK: <strong>18122004210620</strong> — MAI TIEN DUNG
+                  MB Bank — Số TK: <strong>0979093490</strong> — NGUYEN DUC HUY
                 </span>
               </div>
             </div>
@@ -253,11 +255,10 @@ export default function SubscriptionPage() {
                 return (
                   <div
                     key={plan.id}
-                    className={`bg-white rounded-2xl border p-6 shadow-xs transition duration-200 flex flex-col justify-between ${
-                      isPlanActive
-                        ? 'border-emerald-500 ring-1 ring-emerald-500/30'
-                        : 'border-slate-200 hover:border-indigo-500 hover:shadow-md'
-                    }`}
+                    className={`bg-white rounded-2xl border p-6 shadow-xs transition duration-200 flex flex-col justify-between ${isPlanActive
+                      ? 'border-emerald-500 ring-1 ring-emerald-500/30'
+                      : 'border-slate-200 hover:border-indigo-500 hover:shadow-md'
+                      }`}
                   >
                     <div>
                       <div className="flex items-center justify-between mb-3">
@@ -325,7 +326,7 @@ export default function SubscriptionPage() {
                       <button
                         onClick={() => handleCreateOrder(plan.code)}
                         disabled={creatingOrder === plan.code}
-                        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-indigo-700 hover:from-red-700 hover:to-indigo-800 text-white font-semibold text-xs sm:text-sm shadow-sm hover:shadow transition cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                        className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-2xs hover:shadow-xs transition duration-150 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
                       >
                         {creatingOrder === plan.code ? (
                           <>
