@@ -11,6 +11,8 @@ import java.util.UUID;
 @Repository
 public interface SubjectRepository extends JpaRepository<SubjectEntity, UUID> {
     List<SubjectEntity> findAllByOrderByDisplayOrderAsc();
+    List<SubjectEntity> findByGradeOrderByDisplayOrderAsc(Integer grade);
+    List<SubjectEntity> findByGradeOrGradeIsNullOrderByDisplayOrderAsc(Integer grade);
     Optional<SubjectEntity> findByCode(String code);
     Optional<SubjectEntity> findByName(String name);
     boolean existsByCode(String code);

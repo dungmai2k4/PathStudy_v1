@@ -20,8 +20,8 @@ public class SubjectController {
     private final ContentService contentService;
 
     @GetMapping
-    public ApiResponse<List<SubjectDto>> getAllSubjects() {
-        return ApiResponse.ok("Lấy danh sách môn học thành công", contentService.getAllSubjects());
+    public ApiResponse<List<SubjectDto>> getAllSubjects(@RequestParam(value = "grade", required = false) Integer grade) {
+        return ApiResponse.ok("Lấy danh sách môn học thành công", contentService.getAllSubjects(grade));
     }
 
     @GetMapping("/{id}")

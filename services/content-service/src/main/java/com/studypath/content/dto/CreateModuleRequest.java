@@ -1,14 +1,20 @@
 package com.studypath.content.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
+
+import java.util.UUID;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CreateSubjectRequest {
+public class CreateModuleRequest {
+    @NotNull(message = "Subject ID is required")
+    private UUID subjectId;
+
     @NotBlank(message = "Code is required")
     private String code;
 
@@ -17,5 +23,4 @@ public class CreateSubjectRequest {
 
     private String description;
     private Integer displayOrder;
-    private Integer grade;
 }

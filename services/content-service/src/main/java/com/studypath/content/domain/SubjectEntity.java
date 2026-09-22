@@ -40,6 +40,9 @@ public class SubjectEntity {
     @Column(length = 50)
     private String icon;
 
+    @Column(name = "grade")
+    private Integer grade;
+
     @Column(nullable = false, length = 30)
     @Builder.Default
     private String status = "ACTIVE";

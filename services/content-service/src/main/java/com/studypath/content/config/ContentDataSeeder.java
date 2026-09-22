@@ -56,17 +56,63 @@ public class ContentDataSeeder implements CommandLineRunner {
 
     private void seedSubjects() {
         if (subjectRepository.count() > 0) {
-            log.info("Subjects already seeded.");
+            log.info("Checking subject grade migration...");
+            subjectRepository.findByCode("ENGLISH").ifPresent(subj -> {
+                boolean updated = false;
+                if (subj.getGrade() == null) {
+                    subj.setGrade(10);
+                    updated = true;
+                }
+                if ("Tiếng Anh".equals(subj.getName())) {
+                    subj.setName("Tiếng Anh 10");
+                    updated = true;
+                }
+                if (updated) {
+                    subjectRepository.save(subj);
+                    log.info("Updated existing English subject with Grade 10");
+                }
+            });
+
+            if (!subjectRepository.existsByCode("ENGLISH_11")) {
+                SubjectEntity english11 = SubjectEntity.builder()
+                        .name("Tiếng Anh 11")
+                        .code("ENGLISH_11")
+                        .description("Chương trình Tiếng Anh lớp 11 phát triển nâng cao ngữ pháp, từ vựng học thuật và kỹ năng đọc hiểu chuyên đề.")
+                        .icon("Languages")
+                        .grade(11)
+                        .status("ACTIVE")
+                        .isAvailable(true)
+                        .displayOrder(2)
+                        .build();
+                subjectRepository.save(english11);
+                log.info("Seeded Tiếng Anh 11");
+            }
+
+            if (!subjectRepository.existsByCode("ENGLISH_12")) {
+                SubjectEntity english12 = SubjectEntity.builder()
+                        .name("Tiếng Anh 12")
+                        .code("ENGLISH_12")
+                        .description("Chương trình Tiếng Anh lớp 12 và tổng ôn toàn diện phục vụ kỳ thi Tốt nghiệp THPT & Đánh giá năng lực.")
+                        .icon("Languages")
+                        .grade(12)
+                        .status("ACTIVE")
+                        .isAvailable(true)
+                        .displayOrder(3)
+                        .build();
+                subjectRepository.save(english12);
+                log.info("Seeded Tiếng Anh 12");
+            }
             return;
         }
 
         log.info("Seeding subject catalog...");
         SubjectEntity english = SubjectEntity.builder()
                 .id(ENGLISH_SUBJECT_ID)
-                .name("Tiếng Anh")
+                .name("Tiếng Anh 10")
                 .code("ENGLISH")
                 .description("Chương trình Tiếng Anh THPT phát triển 4 kỹ năng ngôn ngữ và trọng tâm ngữ pháp, từ vựng chuẩn cấu trúc đề thi tốt nghiệp & đánh giá năng lực.")
                 .icon("Languages")
+                .grade(10)
                 .status("ACTIVE")
                 .isAvailable(true)
                 .displayOrder(1)

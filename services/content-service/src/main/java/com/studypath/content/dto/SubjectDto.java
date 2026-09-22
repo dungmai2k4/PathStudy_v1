@@ -17,6 +17,7 @@ public class SubjectDto {
     private String icon;
     private String status;
     private Integer displayOrder;
+    private Integer grade;
     private Boolean isAvailable;
     private Long skillCount;
 }

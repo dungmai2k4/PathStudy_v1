@@ -71,32 +71,46 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Initialized default admin account: admin / Admin@123");
         }
 
-        // Seed default Manager
-        if (!accountRepository.existsByUsername("manager")) {
-            RoleEntity managerRole = roleRepository.findByName("MANAGER")
-                    .orElseGet(() -> roleRepository.save(RoleEntity.builder().name("MANAGER").build()));
+        // Seed 5 Specialized Managers
+        RoleEntity managerRole = roleRepository.findByName("MANAGER")
+                .orElseGet(() -> roleRepository.save(RoleEntity.builder().name("MANAGER").build()));
 
-            UserEntity managerUser = UserEntity.builder()
-                    .roles(new HashSet<>(Collections.singletonList(managerRole)))
-                    .build();
-            managerUser = userRepository.save(managerUser);
+        String[][] managers = {
+                {"manager1", "Nguyễn Thu Hà", "Trưởng Ban Ngữ Pháp"},
+                {"manager2", "Trần Minh Đức", "Trưởng Ban Từ Vựng & Đọc Hiểu"},
+                {"manager3", "Lê Hoàng Nam", "Trưởng Ban Ngân Hàng Câu Hỏi"},
+                {"manager4", "Phạm Thảo Vy", "Trưởng Ban Đánh Giá Năng Lực"},
+                {"manager5", "Vũ Quốc Tuấn", "Trưởng Ban Lộ Trình Thích Ứng"}
+        };
 
-            AccountEntity managerAccount = AccountEntity.builder()
-                    .userId(managerUser.getId())
-                    .username("manager")
-                    .passwordHash(passwordEncoder.encode("Manager@123"))
-                    .status("ACTIVE")
-                    .build();
-            accountRepository.save(managerAccount);
+        for (String[] m : managers) {
+            String username = m[0];
+            String fullName = m[1];
+            String department = m[2];
 
-            StudentProfileEntity managerProfile = StudentProfileEntity.builder()
-                    .userId(managerUser.getId())
-                    .fullName("Academic Content Manager")
-                    .grade(12)
-                    .className("MANAGER")
-                    .build();
-            studentProfileRepository.save(managerProfile);
-            log.info("Initialized default manager account: manager / Manager@123");
+            if (!accountRepository.existsByUsername(username)) {
+                UserEntity managerUser = UserEntity.builder()
+                        .roles(new HashSet<>(Collections.singletonList(managerRole)))
+                        .build();
+                managerUser = userRepository.save(managerUser);
+
+                AccountEntity managerAccount = AccountEntity.builder()
+                        .userId(managerUser.getId())
+                        .username(username)
+                        .passwordHash(passwordEncoder.encode("Manager@123"))
+                        .status("ACTIVE")
+                        .build();
+                accountRepository.save(managerAccount);
+
+                StudentProfileEntity managerProfile = StudentProfileEntity.builder()
+                        .userId(managerUser.getId())
+                        .fullName(fullName + " (" + department + ")")
+                        .grade(12)
+                        .className("MANAGER")
+                        .build();
+                studentProfileRepository.save(managerProfile);
+                log.info("Initialized manager account: {} / Manager@123 [{}]", username, department);
+            }
         }
     }
 

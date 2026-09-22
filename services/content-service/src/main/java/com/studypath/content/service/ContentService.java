@@ -25,7 +25,17 @@ public class ContentService {
     private final MiniQuizRepository miniQuizRepository;
 
     public List<SubjectDto> getAllSubjects() {
-        return subjectRepository.findAllByOrderByDisplayOrderAsc().stream()
+        return getAllSubjects(null);
+    }
+
+    public List<SubjectDto> getAllSubjects(Integer grade) {
+        List<SubjectEntity> subjects;
+        if (grade != null) {
+            subjects = subjectRepository.findByGradeOrGradeIsNullOrderByDisplayOrderAsc(grade);
+        } else {
+            subjects = subjectRepository.findAllByOrderByDisplayOrderAsc();
+        }
+        return subjects.stream()
                 .map(this::toSubjectDto)
                 .collect(Collectors.toList());
     }
@@ -226,6 +236,73 @@ public class ContentService {
                 .collect(Collectors.toList());
     }
 
+    // --- Module CRUD APIs ---
+
+    @Transactional
+    public ModuleDto createModule(CreateModuleRequest request) {
+        ModuleEntity entity = ModuleEntity.builder()
+                .subjectId(request.getSubjectId())
+                .code(request.getCode().toUpperCase().trim())
+                .name(request.getName().trim())
+                .description(request.getDescription())
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .status("ACTIVE")
+                .build();
+        entity = moduleRepository.save(entity);
+        return toModuleDto(entity);
+    }
+
+    @Transactional
+    public ModuleDto updateModule(UUID id, CreateModuleRequest request) {
+        ModuleEntity entity = moduleRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy module với ID: " + id));
+        entity.setName(request.getName().trim());
+        entity.setCode(request.getCode().toUpperCase().trim());
+        if (request.getDescription() != null) entity.setDescription(request.getDescription());
+        if (request.getDisplayOrder() != null) entity.setDisplayOrder(request.getDisplayOrder());
+        entity = moduleRepository.save(entity);
+        return toModuleDto(entity);
+    }
+
+    @Transactional
+    public void deleteModule(UUID id) {
+        moduleRepository.deleteById(id);
+    }
+
+    // --- Topic CRUD APIs ---
+
+    @Transactional
+    public TopicDto createTopic(CreateTopicRequest request) {
+        TopicEntity entity = TopicEntity.builder()
+                .moduleId(request.getModuleId())
+                .code(request.getCode().toUpperCase().trim())
+                .name(request.getName().trim())
+                .description(request.getDescription())
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .status("ACTIVE")
+                .build();
+        entity = topicRepository.save(entity);
+        return toTopicDto(entity);
+    }
+
+    @Transactional
+    public TopicDto updateTopic(UUID id, CreateTopicRequest request) {
+        TopicEntity entity = topicRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy topic với ID: " + id));
+        entity.setName(request.getName().trim());
+        entity.setCode(request.getCode().toUpperCase().trim());
+        if (request.getModuleId() != null) entity.setModuleId(request.getModuleId());
+        if (request.getDescription() != null) entity.setDescription(request.getDescription());
+        if (request.getDisplayOrder() != null) entity.setDisplayOrder(request.getDisplayOrder());
+        entity = topicRepository.save(entity);
+        return toTopicDto(entity);
+    }
+
+    @Transactional
+    public void deleteTopic(UUID id) {
+        topicRepository.deleteById(id);
+    }
+
     // --- Manager Mutation APIs ---
 
     @Transactional
@@ -234,6 +311,7 @@ public class ContentService {
                 .code(request.getCode().toUpperCase().trim())
                 .name(request.getName().trim())
                 .description(request.getDescription())
+                .grade(request.getGrade())
                 .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
                 .isAvailable(true)
                 .status("ACTIVE")
@@ -250,6 +328,7 @@ public class ContentService {
         entity.setCode(request.getCode().toUpperCase().trim());
         if (request.getDescription() != null) entity.setDescription(request.getDescription());
         if (request.getDisplayOrder() != null) entity.setDisplayOrder(request.getDisplayOrder());
+        entity.setGrade(request.getGrade());
         entity = subjectRepository.save(entity);
         return toSubjectDto(entity);
     }
@@ -293,8 +372,10 @@ public class ContentService {
 
     @Transactional
     public LessonDto createLesson(CreateLessonRequest request) {
+        // Auto-set skillId = topicId for backward compatibility
+        UUID effectiveSkillId = request.getSkillId() != null ? request.getSkillId() : request.getTopicId();
         LessonEntity entity = LessonEntity.builder()
-                .skillId(request.getSkillId())
+                .skillId(effectiveSkillId)
                 .topicId(request.getTopicId())
                 .title(request.getTitle().trim())
                 .content(request.getContent())
@@ -336,6 +417,7 @@ public class ContentService {
                 .icon(entity.getIcon())
                 .status(entity.getStatus())
                 .displayOrder(entity.getDisplayOrder())
+                .grade(entity.getGrade())
                 .isAvailable(entity.getIsAvailable())
                 .skillCount(skillCount)
                 .build();
