@@ -33,18 +33,36 @@ INSERT INTO student_profile (id, user_id, full_name, grade, class_name, created_
 INSERT INTO user_roles (user_id, role_id) VALUES
 ('11111111-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003');
 
--- Manager
-INSERT INTO users (id, created_at, updated_at) VALUES
-('11111111-0000-0000-0000-000000000002', NOW(), NOW());
+-- 5 Specialized Managers (manager1 - manager5 / Manager@123)
+-- Manager 1: Ngữ pháp
+INSERT INTO users (id, created_at, updated_at) VALUES ('11111111-0000-0000-0000-00000000000a', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
+INSERT INTO account (id, user_id, username, password_hash, status, created_at, updated_at) VALUES ('11111111-0000-0000-0000-00000000001a', '11111111-0000-0000-0000-00000000000a', 'manager1', '$2a$10$9pLHgAsBhEvibc36MhwMb.xdtAQ9oQ9Bdn8TSwXF4q8Nbp1IOceKO', 'ACTIVE', NOW(), NOW()) ON CONFLICT (username) DO NOTHING;
+INSERT INTO student_profile (id, user_id, full_name, grade, class_name, created_at, updated_at) VALUES ('11111111-0000-0000-0000-00000000002a', '11111111-0000-0000-0000-00000000000a', 'Nguyễn Thu Hà (Trưởng Ban Ngữ Pháp)', 12, 'MANAGER', NOW(), NOW()) ON CONFLICT (user_id) DO NOTHING;
+INSERT INTO user_roles (user_id, role_id) VALUES ('11111111-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000002') ON CONFLICT DO NOTHING;
 
-INSERT INTO account (id, user_id, username, password_hash, status, created_at, updated_at) VALUES
-('11111111-0000-0000-0000-000000000012', '11111111-0000-0000-0000-000000000002', 'manager', '$2a$10$9pLHgAsBhEvibc36MhwMb.xdtAQ9oQ9Bdn8TSwXF4q8Nbp1IOceKO', 'ACTIVE', NOW(), NOW());
+-- Manager 2: Từ vựng & Đọc hiểu
+INSERT INTO users (id, created_at, updated_at) VALUES ('11111111-0000-0000-0000-00000000000b', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
+INSERT INTO account (id, user_id, username, password_hash, status, created_at, updated_at) VALUES ('11111111-0000-0000-0000-00000000001b', '11111111-0000-0000-0000-00000000000b', 'manager2', '$2a$10$9pLHgAsBhEvibc36MhwMb.xdtAQ9oQ9Bdn8TSwXF4q8Nbp1IOceKO', 'ACTIVE', NOW(), NOW()) ON CONFLICT (username) DO NOTHING;
+INSERT INTO student_profile (id, user_id, full_name, grade, class_name, created_at, updated_at) VALUES ('11111111-0000-0000-0000-00000000002b', '11111111-0000-0000-0000-00000000000b', 'Trần Minh Đức (Trưởng Ban Từ Vựng & Đọc Hiểu)', 12, 'MANAGER', NOW(), NOW()) ON CONFLICT (user_id) DO NOTHING;
+INSERT INTO user_roles (user_id, role_id) VALUES ('11111111-0000-0000-0000-00000000000b', '10000000-0000-0000-0000-000000000002') ON CONFLICT DO NOTHING;
 
-INSERT INTO student_profile (id, user_id, full_name, grade, class_name, created_at, updated_at) VALUES
-('11111111-0000-0000-0000-000000000022', '11111111-0000-0000-0000-000000000002', 'Academic Content Manager', 12, 'MANAGER', NOW(), NOW());
+-- Manager 3: Ngân hàng câu hỏi & Đề thi
+INSERT INTO users (id, created_at, updated_at) VALUES ('11111111-0000-0000-0000-000000000005', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
+INSERT INTO account (id, user_id, username, password_hash, status, created_at, updated_at) VALUES ('11111111-0000-0000-0000-000000000015', '11111111-0000-0000-0000-000000000005', 'manager3', '$2a$10$9pLHgAsBhEvibc36MhwMb.xdtAQ9oQ9Bdn8TSwXF4q8Nbp1IOceKO', 'ACTIVE', NOW(), NOW()) ON CONFLICT (username) DO NOTHING;
+INSERT INTO student_profile (id, user_id, full_name, grade, class_name, created_at, updated_at) VALUES ('11111111-0000-0000-0000-000000000025', '11111111-0000-0000-0000-000000000005', 'Lê Hoàng Nam (Trưởng Ban Ngân Hàng Câu Hỏi)', 12, 'MANAGER', NOW(), NOW()) ON CONFLICT (user_id) DO NOTHING;
+INSERT INTO user_roles (user_id, role_id) VALUES ('11111111-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000002') ON CONFLICT DO NOTHING;
 
-INSERT INTO user_roles (user_id, role_id) VALUES
-('11111111-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002');
+-- Manager 4: Đánh giá năng lực
+INSERT INTO users (id, created_at, updated_at) VALUES ('11111111-0000-0000-0000-000000000006', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
+INSERT INTO account (id, user_id, username, password_hash, status, created_at, updated_at) VALUES ('11111111-0000-0000-0000-000000000016', '11111111-0000-0000-0000-000000000006', 'manager4', '$2a$10$9pLHgAsBhEvibc36MhwMb.xdtAQ9oQ9Bdn8TSwXF4q8Nbp1IOceKO', 'ACTIVE', NOW(), NOW()) ON CONFLICT (username) DO NOTHING;
+INSERT INTO student_profile (id, user_id, full_name, grade, class_name, created_at, updated_at) VALUES ('11111111-0000-0000-0000-000000000026', '11111111-0000-0000-0000-000000000006', 'Phạm Thảo Vy (Trưởng Ban Đánh Giá Năng Lực)', 12, 'MANAGER', NOW(), NOW()) ON CONFLICT (user_id) DO NOTHING;
+INSERT INTO user_roles (user_id, role_id) VALUES ('11111111-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000002') ON CONFLICT DO NOTHING;
+
+-- Manager 5: Lộ trình thích ứng
+INSERT INTO users (id, created_at, updated_at) VALUES ('11111111-0000-0000-0000-000000000007', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
+INSERT INTO account (id, user_id, username, password_hash, status, created_at, updated_at) VALUES ('11111111-0000-0000-0000-000000000017', '11111111-0000-0000-0000-000000000007', 'manager5', '$2a$10$9pLHgAsBhEvibc36MhwMb.xdtAQ9oQ9Bdn8TSwXF4q8Nbp1IOceKO', 'ACTIVE', NOW(), NOW()) ON CONFLICT (username) DO NOTHING;
+INSERT INTO student_profile (id, user_id, full_name, grade, class_name, created_at, updated_at) VALUES ('11111111-0000-0000-0000-000000000027', '11111111-0000-0000-0000-000000000007', 'Vũ Quốc Tuấn (Trưởng Ban Lộ Trình Thích Ứng)', 12, 'MANAGER', NOW(), NOW()) ON CONFLICT (user_id) DO NOTHING;
+INSERT INTO user_roles (user_id, role_id) VALUES ('11111111-0000-0000-0000-000000000007', '10000000-0000-0000-0000-000000000002') ON CONFLICT DO NOTHING;
 
 -- Student 1 (student / Admin@123)
 INSERT INTO users (id, created_at, updated_at) VALUES

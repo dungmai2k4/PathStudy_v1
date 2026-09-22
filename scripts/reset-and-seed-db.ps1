@@ -49,11 +49,12 @@ function Execute-SqlFile {
         return
     }
     
-    $result = psql -U $DB_USER -h $DB_HOST -p $DB_PORT -d $db -f $filePath 2>&1
-    if ($LASTEXITCODE -eq 0) {
+    $result = psql -U $DB_USER -h $DB_HOST -p $DB_PORT -d $db -v ON_ERROR_STOP=1 -f $filePath 2>&1
+    if ($LASTEXITCODE -eq 0 -and ($result -notmatch "ERROR")) {
         Write-Host "   [OK] Success!" -ForegroundColor Green
     } else {
-        Write-Host "   [FAIL] $result" -ForegroundColor Red
+        Write-Host "   [FAIL] ExitCode=$LASTEXITCODE" -ForegroundColor Red
+        Write-Host "   Output: $result" -ForegroundColor Red
     }
 }
 
