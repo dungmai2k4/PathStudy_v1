@@ -9,13 +9,13 @@ import java.nio.charset.StandardCharsets;
 @Component
 public class VietQRHelper {
 
-    @Value("${vietqr.bank-id:MB}")
+    @Value("${vietqr.bank-id}")
     private String bankId;
 
-    @Value("${vietqr.account-no:18122004210620}")
+    @Value("${vietqr.account-no}")
     private String accountNo;
 
-    @Value("${vietqr.account-name:MAI TIEN DUNG}")
+    @Value("${vietqr.account-name}")
     private String accountName;
 
     @Value("${vietqr.template:compact2}")
