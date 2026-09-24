@@ -12,7 +12,8 @@ import {
 import { ENGLISH_SUBJECT_ID, FONT, formatDateTime } from './studyPathConstants';
 
 /* ── Topic Test Modal (Random questions + Topic Test Attempt History) ── */
-export default function TopicTestModal({ node, onClose, userId, fetchStudyPath, canTakeTest = true }) {
+export default function TopicTestModal({ node, subjectId, onClose, userId, fetchStudyPath, canTakeTest = true }) {
+  const activeSubjectId = subjectId || ENGLISH_SUBJECT_ID;
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [activeTest, setActiveTest] = useState(null);
@@ -57,7 +58,7 @@ export default function TopicTestModal({ node, onClose, userId, fetchStudyPath, 
       const test = await assessmentService.generateTopicTest(
         node.skillId,
         node.skillName,
-        ENGLISH_SUBJECT_ID,
+        activeSubjectId,
         userId
       );
       setActiveTest(test);
@@ -83,14 +84,14 @@ export default function TopicTestModal({ node, onClose, userId, fetchStudyPath, 
 
       if (res.isPassed) {
         // Unlock next skill / topic
-        await adaptiveService.unlockNextSkill(userId, ENGLISH_SUBJECT_ID, node.skillId, node.skillId);
+        await adaptiveService.unlockNextSkill(userId, activeSubjectId, node.skillId, node.skillId);
       } else {
         // Extract weak lessons from assessment result to adaptively reorder lessons
         const weakLessonIds = res.weakLessons ? res.weakLessons.map(w => w.lessonId).filter(Boolean) : [];
         const weakLessonTitles = res.weakLessons ? res.weakLessons.map(w => w.lessonTitle).filter(Boolean) : [];
         await adaptiveService.handleTopicTestFailed(
           userId,
-          ENGLISH_SUBJECT_ID,
+          activeSubjectId,
           node.skillId,
           res.accuracyPercentage,
           weakLessonIds,

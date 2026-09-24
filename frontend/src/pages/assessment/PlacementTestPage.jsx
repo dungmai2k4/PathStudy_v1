@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import assessmentService from '../../services/assessmentService';
 import adaptiveService from '../../services/adaptiveService';
+import contentService from '../../services/contentService';
 import {
   Clock,
   CheckCircle,
@@ -17,12 +18,17 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
-const ENGLISH_SUBJECT_ID = '11111111-1111-1111-1111-111111111101';
+const DEFAULT_SUBJECT_ID = '11111111-1111-1111-1111-111111111101';
 
 export default function PlacementTestPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Parse subjectId from URL query param (?subjectId=...) or fallback
+  const queryParams = new URLSearchParams(location.search);
+  const paramSubjectId = queryParams.get('subjectId');
+  const [subject, setSubject] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -33,17 +39,37 @@ export default function PlacementTestPage() {
   const [timeLeft, setTimeLeft] = useState(12 * 60); // 12 minutes in seconds
   const [result, setResult] = useState(null);
 
+  const uid = user?.userId || user?.id;
+
+  // Resolve subject information
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSub = async () => {
+      const targetId = paramSubjectId || DEFAULT_SUBJECT_ID;
+      try {
+        const subData = await contentService.getSubject(targetId);
+        if (isMounted) setSubject(subData);
+      } catch (e) {
+        if (isMounted) setSubject({ id: targetId, name: 'Môn học', code: 'english' });
+      }
+    };
+    fetchSub();
+    return () => { isMounted = false; };
+  }, [paramSubjectId]);
+
+  const activeSubjectId = subject?.id || paramSubjectId || DEFAULT_SUBJECT_ID;
+
   // Initialize or fetch test
   useEffect(() => {
     const initTest = async () => {
-      if (!user?.userId) return;
+      if (!uid || !activeSubjectId) return;
 
       try {
         setLoading(true);
         // Generate random placement test
         const data = await assessmentService.generatePlacementTest(
-          ENGLISH_SUBJECT_ID,
-          user.userId
+          activeSubjectId,
+          uid
         );
         setTestData(data);
         if (data.timeLimitMinutes) {
@@ -57,7 +83,7 @@ export default function PlacementTestPage() {
     };
 
     initTest();
-  }, [user?.userId]);
+  }, [uid, activeSubjectId]);
 
   const answersRef = useRef(answers);
   answersRef.current = answers;
@@ -117,20 +143,20 @@ export default function PlacementTestPage() {
   };
 
   const handleCreatePersonalizedPath = async () => {
-    if (!result?.attemptId || !user?.userId) return;
+    if (!result?.attemptId || !uid) return;
 
     setGeneratingPath(true);
     try {
-      // Pass skillBreakdown directly — this is the KEY fix!
-      // Backend receives exact per-skill scores instead of re-fetching (which could fail or return defaults)
+      // Pass skillBreakdown directly
       await adaptiveService.generateStudyPath(
-        ENGLISH_SUBJECT_ID,
-        user.userId,
+        activeSubjectId,
+        uid,
         result.attemptId,
         result.skillBreakdown || null
       );
-      // Navigate directly to the personalized study path
-      navigate('/study-path/english');
+      // Navigate dynamically to the personalized study path
+      const targetCode = (subject?.code || 'english').toLowerCase();
+      navigate(`/study-path/${targetCode}`);
     } catch (err) {
       console.error('Lỗi khi tạo lộ trình học cá nhân:', err);
       alert('Không thể tạo lộ trình. Vui lòng thử lại.');
@@ -172,10 +198,10 @@ export default function PlacementTestPage() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Báo Cáo Kết Quả Đánh Giá Năng Lực
+              Báo Cáo Kết Quả Đánh Giá Năng Lực {subject?.name || ''}
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              Hệ thống đã phân tích chi tiết độ chính xác trên từng nhóm kỹ năng tiếng Anh để thiết kế lộ trình học thích ứng (Adaptive Learning Path) dành riêng cho bạn.
+              Hệ thống đã phân tích chi tiết độ chính xác trên từng nhóm kỹ năng của môn học để thiết kế lộ trình học thích ứng (Adaptive Learning Path) dành riêng cho bạn.
             </p>
           </div>
         </div>
@@ -338,7 +364,7 @@ export default function PlacementTestPage() {
             <span>Khảo sát Năng lực Ban đầu ({totalQuestions} Câu ngẫu nhiên)</span>
           </div>
           <h1 className="text-lg sm:text-xl font-bold text-slate-900">
-            {testData?.title || 'Khảo sát Năng lực Tiếng Anh THPT'}
+            {testData?.title || `Khảo sát Năng lực ${subject?.name || 'Môn học'}`}
           </h1>
         </div>
 

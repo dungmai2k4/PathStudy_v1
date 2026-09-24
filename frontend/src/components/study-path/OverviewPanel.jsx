@@ -4,17 +4,22 @@ import { RotateCcw, Award } from 'lucide-react';
 import { FONT } from './studyPathConstants';
 
 /* ── Overview panel ── */
-export default function OverviewPanel({ nodes, onOpenCourseTest, allCompleted }) {
+export default function OverviewPanel({ nodes, subject, onOpenCourseTest, allCompleted }) {
   const done = nodes.filter(n => n.status === 'COMPLETED').length;
   const pct = nodes.length > 0 ? Math.round((done / nodes.length) * 100) : 0;
+  const subjectName = subject?.name || 'môn học';
+
+  // Count unique modules dynamically
+  const uniqueModules = new Set(nodes.map(n => n.moduleName || n.moduleId).filter(Boolean));
+  const moduleCount = uniqueModules.size || 1;
 
   return (
     <div style={{ maxWidth: 640, fontFamily: FONT }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
-        Lộ trình học Tiếng Anh THPT theo Module & Chủ đề
+        Lộ trình học {subjectName} theo Module & Chủ đề
       </h1>
       <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 20, lineHeight: 1.65 }}>
-        Môn học gồm 2 module kỹ năng: <strong>Ngữ pháp</strong> và <strong>Từ vựng</strong>. Trong mỗi module có các chủ đề (Topic) bài học. Bạn cần hoàn thành tuần tự từng bài học và quiz để mở khóa bài học kế tiếp.
+        Môn học gồm {moduleCount} khối kiến thức (Module). Trong mỗi module có các chủ đề (Topic) bài học. Bạn cần hoàn thành tuần tự từng bài học và quiz để mở khóa bài học kế tiếp.
       </p>
 
       {/* Progress Bar */}

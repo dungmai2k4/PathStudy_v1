@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import adaptiveService from '../../services/adaptiveService';
@@ -15,6 +15,7 @@ import { ENGLISH_SUBJECT_ID, FONT } from '../../components/study-path/studyPathC
 export default function StudyPathRoadmapPage() {
   const { user, isPro } = useAuth();
   const { subjectCode } = useParams();
+  const [subject, setSubject] = useState(null);
   const [studyPath, setStudyPath] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -36,22 +37,72 @@ export default function StudyPathRoadmapPage() {
   const [topicTestNode, setTopicTestNode] = useState(null);
   const [showCourseTestModal, setShowCourseTestModal] = useState(false);
 
+  // Determine current active userId safely
+  const uid = user?.userId || user?.id;
+
+  // Resolve subject by subjectCode dynamically
+  useEffect(() => {
+    let isMounted = true;
+    const resolveSubject = async () => {
+      try {
+        if (!subjectCode) {
+          // Default fallback
+          const defaultSub = await contentService.getSubject(ENGLISH_SUBJECT_ID);
+          if (isMounted) setSubject(defaultSub);
+          return;
+        }
+
+        // Try getting subject by code first
+        try {
+          const sub = await contentService.getSubjectByCode(subjectCode);
+          if (sub && isMounted) {
+            setSubject(sub);
+            return;
+          }
+        } catch (e) {
+          // Fallback to searching all subjects
+        }
+
+        const allSubs = await contentService.getSubjects();
+        const found = (allSubs || []).find(
+          s => (s.code || '').toLowerCase() === subjectCode.toLowerCase() ||
+               (s.id || '').toLowerCase() === subjectCode.toLowerCase()
+        );
+        if (found && isMounted) {
+          setSubject(found);
+        } else if (isMounted) {
+          setSubject({ id: ENGLISH_SUBJECT_ID, name: subjectCode.toUpperCase(), code: subjectCode });
+        }
+      } catch (err) {
+        console.error('Error resolving subject:', err);
+      }
+    };
+
+    resolveSubject();
+    return () => { isMounted = false; };
+  }, [subjectCode]);
+
+  const activeSubjectId = subject?.id || ENGLISH_SUBJECT_ID;
+
   const fetchStudyPath = async () => {
-    if (!user?.userId) return;
+    if (!uid || !activeSubjectId) return;
     try {
       setLoading(true);
-      const pathData = await adaptiveService.getMyStudyPath(user.userId, ENGLISH_SUBJECT_ID);
+      const pathData = await adaptiveService.getMyStudyPath(uid, activeSubjectId);
       setStudyPath(pathData);
     } catch (err) {
-      console.error(err);
+      console.error('Lỗi tải lộ trình học:', err);
+      setStudyPath(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchStudyPath();
-  }, [user?.userId]);
+    if (uid && activeSubjectId) {
+      fetchStudyPath();
+    }
+  }, [uid, activeSubjectId]);
 
   // Expand active topic automatically on load
   useEffect(() => {
@@ -80,8 +131,8 @@ export default function StudyPathRoadmapPage() {
         setRemedialByTopic(prev => ({ ...prev, [topicId]: rem || [] }));
       }
       // 3. Fetch lesson progress
-      if (user?.userId) {
-        const prog = await adaptiveService.getLessonProgress(user.userId, topicId);
+      if (uid) {
+        const prog = await adaptiveService.getLessonProgress(uid, topicId);
         const map = {};
         (prog || []).forEach(p => { map[p.lessonId] = p; });
         setProgressByTopic(prev => ({ ...prev, [topicId]: map }));
@@ -174,6 +225,25 @@ export default function StudyPathRoadmapPage() {
     }
   };
 
+  const nodes = studyPath?.nodes || [];
+  const done = nodes.filter(n => n.status === 'COMPLETED').length;
+  const pct = nodes.length > 0 ? Math.round((done / nodes.length) * 100) : 0;
+  const allCompleted = nodes.length > 0 && done === nodes.length;
+
+  // Group nodes dynamically by Module ID / Module Name (must be before any early return)
+  const modulesGrouped = useMemo(() => {
+    const map = new Map();
+    nodes.forEach(node => {
+      const mId = node.moduleId || 'default-module';
+      const mName = node.moduleName || 'Khối kiến thức';
+      if (!map.has(mId)) {
+        map.set(mId, { id: mId, name: mName, nodes: [] });
+      }
+      map.get(mId).nodes.push(node);
+    });
+    return Array.from(map.values());
+  }, [nodes]);
+
   if (loading && !studyPath) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '80px 0', flexDirection: 'column', gap: 12 }}>
@@ -184,9 +254,7 @@ export default function StudyPathRoadmapPage() {
   }
 
   if (!studyPath || !studyPath.nodes || studyPath.nodes.length === 0) {
-    const subjectDisplayName = subjectCode
-      ? (subjectCode.toLowerCase() === 'english' ? 'Tiếng Anh 10' : subjectCode.toUpperCase())
-      : 'môn học';
+    const subjectDisplayName = subject?.name || (subjectCode ? subjectCode.toUpperCase() : 'môn học');
 
     return (
       <div style={{ maxWidth: 520, margin: '60px auto', textAlign: 'center', fontFamily: FONT, background: '#fff', padding: '40px 32px', borderRadius: 20, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
@@ -201,7 +269,7 @@ export default function StudyPathRoadmapPage() {
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', justifyContent: 'center' }}>
           <Link
-            to={`/assessment/placement?subjectId=${ENGLISH_SUBJECT_ID}`}
+            to={`/assessment/placement?subjectId=${activeSubjectId}`}
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 24px', background: '#4f46e5', color: '#fff', fontSize: 14, fontWeight: 600, textDecoration: 'none', borderRadius: 10, fontFamily: FONT, width: '100%', maxWidth: 300 }}
           >
             Bắt đầu bài khảo sát năng lực
@@ -217,22 +285,6 @@ export default function StudyPathRoadmapPage() {
       </div>
     );
   }
-
-  const nodes = studyPath.nodes || [];
-  const done = nodes.filter(n => n.status === 'COMPLETED').length;
-  const pct = Math.round((done / nodes.length) * 100);
-  const allCompleted = done === nodes.length;
-
-  // Group nodes strictly by Module (no duplicate nodes between modules)
-  const isGrammarNode = (n) => {
-    const mod = (n.moduleName || '').toLowerCase();
-    if (mod.includes('ngữ pháp') || mod.includes('grammar')) return true;
-    if (mod.includes('từ vựng') || mod.includes('vocab')) return false;
-    const sId = String(n.topicId || n.skillId || '');
-    return sId.endsWith('01') || sId.endsWith('02') || sId.endsWith('03') || sId.endsWith('04');
-  };
-  const grammarNodes = nodes.filter(isGrammarNode);
-  const vocabNodes = nodes.filter(n => !isGrammarNode(n));
 
   // Check whether lessons in a topic/node are finished so test can be unlocked
   const isNodeTestUnlocked = (node) => {
@@ -299,7 +351,7 @@ export default function StudyPathRoadmapPage() {
             Lộ trình học thích ứng
           </div>
           <h2 className="text-base font-bold text-slate-900 mb-2 leading-tight">
-            Tiếng Anh THPT
+            {subject?.name || (subjectCode ? subjectCode.toUpperCase() : 'Môn học')}
           </h2>
           <div>
             <div className="flex justify-between text-xs text-slate-500 mb-1.5 font-medium">
@@ -317,73 +369,44 @@ export default function StudyPathRoadmapPage() {
 
         {/* Tree content */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {/* Module 1: Grammar */}
-          {grammarNodes.length > 0 && (
-            <div>
-              <div style={{ padding: '8px 14px 4px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Module 1: Ngữ pháp (Grammar)
+          {/* Dynamic N Modules rendering */}
+          {modulesGrouped.map((moduleGroup, mIdx) => {
+            const groupNodes = moduleGroup.nodes || [];
+            if (groupNodes.length === 0) return null;
+
+            return (
+              <div key={moduleGroup.id || mIdx}>
+                <div style={{ padding: '8px 14px 4px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Module {mIdx + 1}: {moduleGroup.name}
+                </div>
+                {groupNodes.map((node, idx) => {
+                  const topicKey = node.topicId || node.skillId;
+                  // Each module is independent: first topic is unlocked. Subsequent topics unlock when previous topic is COMPLETED.
+                  const isTopicLocked = idx === 0
+                    ? false
+                    : !(groupNodes[idx - 1].status === 'COMPLETED' || node.status === 'UNLOCKED' || node.status === 'COMPLETED' || node.status === 'NEEDS_REMEDIATION');
+
+                  return (
+                    <TopicItem
+                      key={node.id || idx}
+                      node={node}
+                      isLocked={isTopicLocked}
+                      isPro={isPro}
+                      onAddProRemedial={handleAddProRemedial}
+                      lessons={lessonsByTopic[topicKey]}
+                      remedialLessons={remedialByTopic[topicKey]}
+                      lessonProgressMap={progressByTopic[topicKey] || {}}
+                      isExpanded={expandedTopics.has(topicKey)}
+                      onToggleTopic={handleToggleTopic}
+                      activeLessonId={activeLessonId}
+                      onSelectLesson={handleSelectLesson}
+                      onOpenTopicTest={setTopicTestNode}
+                    />
+                  );
+                })}
               </div>
-              {grammarNodes.map((node, idx) => {
-                const topicKey = node.topicId || node.skillId;
-                // Module 1 is independent: first topic is unlocked. Subsequent topics unlock when previous topic is COMPLETED.
-                const isTopicLocked = idx === 0
-                  ? false
-                  : !(grammarNodes[idx - 1].status === 'COMPLETED' || node.status === 'UNLOCKED' || node.status === 'COMPLETED' || node.status === 'NEEDS_REMEDIATION');
-
-                return (
-                  <TopicItem
-                    key={node.id || idx}
-                    node={node}
-                    isLocked={isTopicLocked}
-                    isPro={isPro}
-                    onAddProRemedial={handleAddProRemedial}
-                    lessons={lessonsByTopic[topicKey]}
-                    remedialLessons={remedialByTopic[topicKey]}
-                    lessonProgressMap={progressByTopic[topicKey] || {}}
-                    isExpanded={expandedTopics.has(topicKey)}
-                    onToggleTopic={handleToggleTopic}
-                    activeLessonId={activeLessonId}
-                    onSelectLesson={handleSelectLesson}
-                    onOpenTopicTest={setTopicTestNode}
-                  />
-                );
-              })}
-            </div>
-          )}
-
-          {/* Module 2: Vocabulary */}
-          {vocabNodes.length > 0 && (
-            <div>
-              <div style={{ padding: '8px 14px 4px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Module 2: Từ vựng (Vocabulary)
-              </div>
-              {vocabNodes.map((node, idx) => {
-                const topicKey = node.topicId || node.skillId;
-                // Module 2 is independent: first topic is unlocked. Subsequent topics unlock when previous topic is COMPLETED.
-                const isTopicLocked = idx === 0
-                  ? false
-                  : !(vocabNodes[idx - 1].status === 'COMPLETED' || node.status === 'UNLOCKED' || node.status === 'COMPLETED' || node.status === 'NEEDS_REMEDIATION');
-
-                return (
-                  <TopicItem
-                    key={node.id || idx}
-                    node={node}
-                    isLocked={isTopicLocked}
-                    isPro={isPro}
-                    onAddProRemedial={handleAddProRemedial}
-                    lessons={lessonsByTopic[topicKey]}
-                    remedialLessons={remedialByTopic[topicKey]}
-                    lessonProgressMap={progressByTopic[topicKey] || {}}
-                    isExpanded={expandedTopics.has(topicKey)}
-                    onToggleTopic={handleToggleTopic}
-                    activeLessonId={activeLessonId}
-                    onSelectLesson={handleSelectLesson}
-                    onOpenTopicTest={setTopicTestNode}
-                  />
-                );
-              })}
-            </div>
-          )}
+            );
+          })}
 
           {/* COURSE FINAL TEST BUTTON IN SIDEBAR */}
           <div style={{ padding: '12px 14px', borderTop: '1px solid #e2e8f0', background: allCompleted ? '#f0fdf4' : '#fff' }}>
@@ -436,7 +459,7 @@ export default function StudyPathRoadmapPage() {
             examples={activeExamples}
             miniQuizzes={activeMiniQuizzes}
             activeSkillNode={activeSkillNode}
-            userId={user.userId}
+            userId={uid}
             onOpenTest={setTopicTestNode}
             lessonProgress={
               activeSkillNode && progressByTopic[activeSkillNode.topicId || activeSkillNode.skillId]
@@ -451,6 +474,7 @@ export default function StudyPathRoadmapPage() {
         ) : (
           <OverviewPanel
             nodes={nodes}
+            subject={subject}
             onOpenCourseTest={() => setShowCourseTestModal(true)}
             allCompleted={allCompleted}
           />
@@ -461,8 +485,9 @@ export default function StudyPathRoadmapPage() {
       {topicTestNode && (
         <TopicTestModal
           node={topicTestNode}
+          subjectId={activeSubjectId}
           onClose={() => setTopicTestNode(null)}
-          userId={user.userId}
+          userId={uid}
           fetchStudyPath={fetchStudyPath}
           canTakeTest={topicTestNode ? isNodeTestUnlocked(topicTestNode) : false}
         />
@@ -472,7 +497,8 @@ export default function StudyPathRoadmapPage() {
       {showCourseTestModal && (
         <CourseFinalTestModal
           onClose={() => setShowCourseTestModal(false)}
-          userId={user.userId}
+          userId={uid}
+          subjectId={activeSubjectId}
           fetchStudyPath={fetchStudyPath}
           isUnlocked={allCompleted}
         />

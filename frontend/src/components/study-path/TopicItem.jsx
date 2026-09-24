@@ -87,7 +87,7 @@ export default function TopicItem({
     <div style={{ borderBottom: '1px solid #f3f4f6' }}>
       <button
         disabled={isLocked}
-        onClick={() => !isLocked && onToggleTopic(node.skillId)}
+        onClick={() => !isLocked && onToggleTopic(node.topicId || node.skillId)}
         onMouseEnter={() => !isLocked && setHov(true)}
         onMouseLeave={() => setHov(false)}
         style={{
@@ -223,7 +223,7 @@ export default function TopicItem({
                 onClick={(e) => {
                   e.stopPropagation();
                   setProRequestedRemedial(true);
-                  if (onAddProRemedial) onAddProRemedial(node.skillId);
+                  if (onAddProRemedial) onAddProRemedial(node.topicId || node.skillId);
                 }}
                 style={{
                   width: '100%',

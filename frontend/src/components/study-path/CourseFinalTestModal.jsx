@@ -11,7 +11,8 @@ import {
 import { ENGLISH_SUBJECT_ID, FONT, formatDateTime } from './studyPathConstants';
 
 /* ── Course Final Test Modal (Comprehensive Exam + Course Attempt History) ── */
-export default function CourseFinalTestModal({ onClose, userId, fetchStudyPath, isUnlocked }) {
+export default function CourseFinalTestModal({ onClose, userId, subjectId, fetchStudyPath, isUnlocked }) {
+  const activeSubjectId = subjectId || ENGLISH_SUBJECT_ID;
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [activeTest, setActiveTest] = useState(null);
@@ -27,7 +28,7 @@ export default function CourseFinalTestModal({ onClose, userId, fetchStudyPath, 
 
   const loadHistory = () => {
     setLoadingHistory(true);
-    assessmentService.getSubjectTestHistory(userId, ENGLISH_SUBJECT_ID)
+    assessmentService.getSubjectTestHistory(userId, activeSubjectId)
       .then(h => setHistory(h || []))
       .catch(() => {})
       .finally(() => setLoadingHistory(false));
@@ -35,7 +36,7 @@ export default function CourseFinalTestModal({ onClose, userId, fetchStudyPath, 
 
   useEffect(() => {
     loadHistory();
-  }, []);
+  }, [activeSubjectId]);
 
   useEffect(() => {
     if (!activeTest || result || timeLeft <= 0) return;
@@ -52,7 +53,7 @@ export default function CourseFinalTestModal({ onClose, userId, fetchStudyPath, 
 
   const handleStart = async () => {
     try {
-      const test = await assessmentService.generateCourseFinalTest(ENGLISH_SUBJECT_ID, userId);
+      const test = await assessmentService.generateCourseFinalTest(activeSubjectId, userId);
       setActiveTest(test);
       setTimeLeft((test.totalQuestions || 15) * 60);
       setAnswers({});
@@ -75,7 +76,7 @@ export default function CourseFinalTestModal({ onClose, userId, fetchStudyPath, 
       setResult(res);
 
       if (res.isPassed) {
-        await adaptiveService.completeCourseFinalTest(userId, ENGLISH_SUBJECT_ID, res.accuracyPercentage);
+        await adaptiveService.completeCourseFinalTest(userId, activeSubjectId, res.accuracyPercentage);
       }
       fetchStudyPath();
       loadHistory();

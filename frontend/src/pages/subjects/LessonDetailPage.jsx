@@ -72,7 +72,26 @@ export default function LessonDetailPage() {
   let parsedQuizQuestions = [];
   if (miniQuizzes.length > 0 && miniQuizzes[0].questionsJson) {
     try {
-      parsedQuizQuestions = JSON.parse(miniQuizzes[0].questionsJson);
+      const raw = JSON.parse(miniQuizzes[0].questionsJson);
+      parsedQuizQuestions = (raw || []).map((item) => {
+        let optList = [];
+        let correctAnswerText = item.answer || item.correctAnswer;
+        if (Array.isArray(item.options)) {
+          optList = item.options;
+        } else if (item.options && typeof item.options === 'object') {
+          // Object format: { A: "text", B: "text" }
+          optList = Object.entries(item.options).map(([k, v]) => `${k}. ${v}`);
+          if (item.correctAnswer && item.options[item.correctAnswer]) {
+            correctAnswerText = `${item.correctAnswer}. ${item.options[item.correctAnswer]}`;
+          }
+        }
+        return {
+          question: item.question,
+          options: optList,
+          answer: correctAnswerText,
+          explanation: item.explanation,
+        };
+      });
     } catch (e) {
       console.error('Lỗi parse quiz questions:', e);
     }

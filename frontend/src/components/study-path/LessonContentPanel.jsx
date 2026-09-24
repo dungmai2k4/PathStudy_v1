@@ -38,13 +38,13 @@ export default function LessonContentPanel({
   const [quizPassed, setQuizPassed] = useState(false);
 
   useEffect(() => {
-    // Reset quiz state and draw fresh randomized questions when switching lesson
+    // Reset quiz state and draw fresh randomized questions when switching lesson or when miniQuizzes load
     setQuizQuestions(getRandomQuizForLesson(lesson, miniQuizzes));
     setQuizAnswers({});
     setQuizSubmitted(false);
     setQuizScorePct(null);
     setQuizPassed(false);
-  }, [lesson?.id]);
+  }, [lesson?.id, miniQuizzes]);
 
   const handleRefreshQuiz = () => {
     setQuizQuestions(getRandomQuizForLesson(lesson, miniQuizzes));

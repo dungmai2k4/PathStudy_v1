@@ -484,6 +484,7 @@ export const FALLBACK_LESSON_QUIZZES = {
 
 // Fisher-Yates shuffle helper
 export function shuffleArray(array) {
+  if (!array || !Array.isArray(array)) return [];
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -547,6 +548,90 @@ export function getQuestionPoolForLesson(lesson) {
   ];
 }
 
+/* ── Normalizer to handle diverse quiz question schemas (object options vs array options) ── */
+export function normalizeQuizQuestion(q) {
+  if (!q) return null;
+  const questionText = q.question || q.content || '';
+  if (!questionText) return null;
+
+  let rawOptions = q.options;
+  if (typeof rawOptions === 'string') {
+    try {
+      rawOptions = JSON.parse(rawOptions);
+    } catch (e) {
+      rawOptions = [rawOptions];
+    }
+  }
+
+  let optList = [];
+  let answerText = q.answer || '';
+
+  if (Array.isArray(rawOptions)) {
+    optList = rawOptions.map(opt => (typeof opt === 'string' ? opt : (opt?.text || String(opt))));
+    // If answerText is empty, but correctAnswer is 'A', 'B', 'C', 'D' or numeric index
+    if (!answerText && q.correctAnswer !== undefined && q.correctAnswer !== null) {
+      const ca = String(q.correctAnswer).trim().toUpperCase();
+      const idx = ['A', 'B', 'C', 'D'].indexOf(ca);
+      if (idx >= 0 && idx < optList.length) {
+        answerText = optList[idx];
+      } else if (!isNaN(Number(q.correctAnswer)) && Number(q.correctAnswer) >= 0 && Number(q.correctAnswer) < optList.length) {
+        answerText = optList[Number(q.correctAnswer)];
+      } else {
+        answerText = String(q.correctAnswer);
+      }
+    }
+  } else if (rawOptions && typeof rawOptions === 'object') {
+    // Object format: { A: "text", B: "text", C: "text", D: "text" }
+    const letters = ['A', 'B', 'C', 'D'];
+    const hasLetterKeys = letters.some(k => rawOptions[k] !== undefined);
+    if (hasLetterKeys) {
+      letters.forEach(k => {
+        if (rawOptions[k] !== undefined) {
+          const val = typeof rawOptions[k] === 'string' ? rawOptions[k] : (rawOptions[k]?.text || String(rawOptions[k]));
+          optList.push(val);
+        }
+      });
+      const ca = String(q.correctAnswer || q.answer || '').trim().toUpperCase();
+      if (rawOptions[ca] !== undefined) {
+        answerText = typeof rawOptions[ca] === 'string' ? rawOptions[ca] : (rawOptions[ca]?.text || String(rawOptions[ca]));
+      }
+    } else {
+      Object.keys(rawOptions).forEach(k => {
+        const val = typeof rawOptions[k] === 'string' ? rawOptions[k] : (rawOptions[k]?.text || String(rawOptions[k]));
+        optList.push(val);
+      });
+      if (q.correctAnswer && rawOptions[q.correctAnswer] !== undefined) {
+        answerText = typeof rawOptions[q.correctAnswer] === 'string' ? rawOptions[q.correctAnswer] : (rawOptions[q.correctAnswer]?.text || String(rawOptions[q.correctAnswer]));
+      }
+    }
+  }
+
+  // Fallback: check if rawOptions had objects with isCorrect
+  if (!answerText && Array.isArray(rawOptions)) {
+    const corrObj = rawOptions.find(o => o && typeof o === 'object' && o.isCorrect);
+    if (corrObj) answerText = corrObj.text || '';
+  }
+
+  if (!answerText && q.correctAnswer) {
+    answerText = String(q.correctAnswer);
+  }
+
+  // If all options have "A. ", "B. " prefixes, strip them so UI circle badges aren't duplicate
+  const allPrefixed = optList.length > 0 && optList.every(opt => /^[A-Da-d][\.\:\)]\s+/.test(opt));
+  if (allPrefixed) {
+    optList = optList.map(opt => opt.replace(/^[A-Da-d][\.\:\)]\s+/, '').trim());
+    answerText = answerText.replace(/^[A-Da-d][\.\:\)]\s+/, '').trim();
+  }
+
+  return {
+    ...q,
+    question: questionText,
+    options: optList,
+    answer: answerText,
+    explanation: q.explanation || ''
+  };
+}
+
 /* ── Randomized Quiz Generator: shuffles pool questions & option choices A/B/C/D ── */
 export function getRandomQuizForLesson(lesson, miniQuizzes, count = 3) {
   let pool = [];
@@ -567,10 +652,13 @@ export function getRandomQuizForLesson(lesson, miniQuizzes, count = 3) {
   const fallback = getQuestionPoolForLesson(lesson) || [];
   pool.push(...fallback);
 
+  // Normalize all questions to unified schema: { question, options: string[], answer: string, explanation: string }
+  const normalizedPool = pool.map(normalizeQuizQuestion).filter(Boolean);
+
   // Deduplicate by question text
   const seen = new Set();
-  const uniquePool = pool.filter(q => {
-    if (!q || !q.question) return false;
+  const uniquePool = normalizedPool.filter(q => {
+    if (!q || !q.question || !Array.isArray(q.options) || q.options.length === 0) return false;
     const key = q.question.trim().toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
@@ -583,10 +671,14 @@ export function getRandomQuizForLesson(lesson, miniQuizzes, count = 3) {
 
   // Shuffle options for each question so correct answer position is randomized
   return selected.map(q => {
-    if (!q.options || q.options.length <= 1) return q;
+    const opts = q.options || [];
+    if (!Array.isArray(opts) || opts.length <= 1) {
+      return q;
+    }
     return {
       ...q,
-      options: shuffleArray(q.options)
+      options: shuffleArray(opts)
     };
   });
 }
+
