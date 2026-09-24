@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import managerService from '../../services/managerService';
-import { 
-  HelpCircle, Plus, Filter, Trash2, CheckCircle2, 
+import {
+  HelpCircle, Plus, Filter, Trash2, CheckCircle2,
   X, FolderPlus, Sparkles, BookOpen, AlertCircle, Check,
-  Search, RotateCcw
+  Search, RotateCcw, Edit, Layers
 } from 'lucide-react';
 
 export default function QuestionBankManagerPage() {
@@ -12,11 +12,14 @@ export default function QuestionBankManagerPage() {
   const [banks, setBanks] = useState([]);
   const [selectedBank, setSelectedBank] = useState(null);
   const [skills, setSkills] = useState([]);
+  const [modules, setModules] = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
 
   // Filter criteria
   const [difficultyFilter, setDifficultyFilter] = useState('ALL');
   const [skillFilter, setSkillFilter] = useState('ALL');
+  const [moduleFilter, setModuleFilter] = useState('ALL');
+  const [topicFilter, setTopicFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [loading, setLoading] = useState(true);
@@ -26,11 +29,15 @@ export default function QuestionBankManagerPage() {
   // Modals
   const [isBankModalOpen, setIsBankModalOpen] = useState(false);
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState(null); // When editing, holds question object
 
   // Forms
   const [bankForm, setBankForm] = useState({ name: '', description: '' });
   const [questionForm, setQuestionForm] = useState({
     skillId: '',
+    moduleId: '',
+    topicId: '',
+    lessonId: '',
     content: '',
     difficulty: 'MEDIUM',
     explanation: '',
@@ -41,6 +48,10 @@ export default function QuestionBankManagerPage() {
       { optionContent: '', isCorrect: false, displayOrder: 4 },
     ],
   });
+
+  // Modal cascaded topics and lessons for question form
+  const [formTopics, setFormTopics] = useState([]);
+  const [formLessons, setFormLessons] = useState([]);
 
   // Load initial subjects and question banks
   useEffect(() => {
@@ -68,21 +79,70 @@ export default function QuestionBankManagerPage() {
     init();
   }, []);
 
-  // When subject changes, load skills for that subject
+  // When subject changes, load skills and modules for that subject
   useEffect(() => {
     if (selectedSubjectId) {
       managerService.getSkillsBySubject(selectedSubjectId).then((data) => {
         setSkills(data || []);
-        if (data && data.length > 0) {
-          setQuestionForm((prev) => ({ ...prev, skillId: data[0].id }));
+      });
+      managerService.getModulesBySubject(selectedSubjectId).then(async (mods) => {
+        const modsList = mods || [];
+        // Fetch topics for each module so we have complete tree
+        for (const m of modsList) {
+          if (!m.topics || m.topics.length === 0) {
+            try {
+              const tops = await managerService.getTopicsByModule(m.id);
+              m.topics = tops || [];
+            } catch (ignored) { }
+          }
         }
+        setModules(modsList);
       });
     }
   }, [selectedSubjectId]);
 
+  // When modal moduleId changes, update formTopics
+  useEffect(() => {
+    if (questionForm.moduleId) {
+      const selectedMod = modules.find(m => m.id === questionForm.moduleId);
+      if (selectedMod && selectedMod.topics) {
+        setFormTopics(selectedMod.topics);
+        if (selectedMod.topics.length > 0 && !selectedMod.topics.some(t => t.id === questionForm.topicId)) {
+          setQuestionForm(prev => ({ ...prev, topicId: selectedMod.topics[0].id }));
+        }
+      } else {
+        managerService.getTopicsByModule(questionForm.moduleId).then(tops => {
+          setFormTopics(tops || []);
+          if (tops && tops.length > 0 && !tops.some(t => t.id === questionForm.topicId)) {
+            setQuestionForm(prev => ({ ...prev, topicId: tops[0].id }));
+          }
+        });
+      }
+    } else {
+      setFormTopics([]);
+      setFormLessons([]);
+    }
+  }, [questionForm.moduleId, modules]);
+
+  // When modal topicId changes, update formLessons
+  useEffect(() => {
+    if (questionForm.topicId) {
+      managerService.getLessonsByTopic(questionForm.topicId).then(les => {
+        setFormLessons(les || []);
+        if (les && les.length > 0 && !les.some(l => l.id === questionForm.lessonId)) {
+          setQuestionForm(prev => ({ ...prev, lessonId: les[0].id }));
+        }
+      });
+    } else {
+      setFormLessons([]);
+    }
+  }, [questionForm.topicId]);
+
   const handleSelectBank = async (bank) => {
     setSelectedBank(bank);
     setSelectedSubjectId(bank.subjectId);
+    setModuleFilter('ALL');
+    setTopicFilter('ALL');
     loadQuestions(bank.id);
   };
 
@@ -100,13 +160,23 @@ export default function QuestionBankManagerPage() {
     }
   };
 
+  // Filtered topics for filter bar based on moduleFilter
+  const filterAvailableTopics = useMemo(() => {
+    if (moduleFilter === 'ALL') {
+      return modules.flatMap(m => m.topics || []);
+    }
+    const foundMod = modules.find(m => m.id === moduleFilter);
+    return foundMod?.topics || [];
+  }, [modules, moduleFilter]);
+
   // Filtered questions memoized for instant, jump-free updates
   const filteredQuestions = useMemo(() => {
     return allQuestions.filter((q) => {
       const qDiff = (q.difficulty || '').toUpperCase();
       const matchesDiff = difficultyFilter === 'ALL' || qDiff === difficultyFilter;
-
       const matchesSkill = skillFilter === 'ALL' || q.skillId === skillFilter;
+      const matchesModule = moduleFilter === 'ALL' || q.moduleId === moduleFilter;
+      const matchesTopic = topicFilter === 'ALL' || q.topicId === topicFilter;
 
       const query = searchQuery.trim().toLowerCase();
       const matchesSearch =
@@ -115,9 +185,9 @@ export default function QuestionBankManagerPage() {
         q.explanation?.toLowerCase().includes(query) ||
         q.options?.some((opt) => opt.optionContent?.toLowerCase().includes(query));
 
-      return matchesDiff && matchesSkill && matchesSearch;
+      return matchesDiff && matchesSkill && matchesModule && matchesTopic && matchesSearch;
     });
-  }, [allQuestions, difficultyFilter, skillFilter, searchQuery]);
+  }, [allQuestions, difficultyFilter, skillFilter, moduleFilter, topicFilter, searchQuery]);
 
   // Real-time difficulty count badges
   const diffCounts = useMemo(() => {
@@ -138,10 +208,12 @@ export default function QuestionBankManagerPage() {
   const handleResetFilters = () => {
     setDifficultyFilter('ALL');
     setSkillFilter('ALL');
+    setModuleFilter('ALL');
+    setTopicFilter('ALL');
     setSearchQuery('');
   };
 
-  const isFiltered = difficultyFilter !== 'ALL' || skillFilter !== 'ALL' || searchQuery.trim() !== '';
+  const isFiltered = difficultyFilter !== 'ALL' || skillFilter !== 'ALL' || moduleFilter !== 'ALL' || topicFilter !== 'ALL' || searchQuery.trim() !== '';
 
   const handleCreateBank = async (e) => {
     e.preventDefault();
@@ -164,39 +236,120 @@ export default function QuestionBankManagerPage() {
     }
   };
 
-  const handleCreateQuestion = async (e) => {
+  const handleOpenCreateModal = () => {
+    setEditingQuestion(null);
+    const initialModId = modules[0]?.id || '';
+    const initialTopics = modules[0]?.topics || [];
+    const initialTopicId = initialTopics[0]?.id || '';
+
+    setQuestionForm({
+      skillId: skills[0]?.id || '',
+      moduleId: initialModId,
+      topicId: initialTopicId,
+      lessonId: '',
+      content: '',
+      difficulty: 'MEDIUM',
+      explanation: '',
+      options: [
+        { optionContent: '', isCorrect: true, displayOrder: 1 },
+        { optionContent: '', isCorrect: false, displayOrder: 2 },
+        { optionContent: '', isCorrect: false, displayOrder: 3 },
+        { optionContent: '', isCorrect: false, displayOrder: 4 },
+      ],
+    });
+    setFormTopics(initialTopics);
+    setIsQuestionModalOpen(true);
+  };
+
+  const handleOpenEditModal = async (q) => {
+    setEditingQuestion(q);
+    const qOptions = (q.options && q.options.length > 0)
+      ? q.options.map((opt, i) => ({
+        id: opt.id,
+        optionContent: opt.optionContent || '',
+        isCorrect: !!opt.isCorrect,
+        displayOrder: opt.displayOrder || (i + 1),
+      }))
+      : [
+        { optionContent: '', isCorrect: true, displayOrder: 1 },
+        { optionContent: '', isCorrect: false, displayOrder: 2 },
+        { optionContent: '', isCorrect: false, displayOrder: 3 },
+        { optionContent: '', isCorrect: false, displayOrder: 4 },
+      ];
+
+    const currentModId = q.moduleId || modules[0]?.id || '';
+    const foundMod = modules.find(m => m.id === currentModId);
+    let topicsList = foundMod?.topics || [];
+    if (topicsList.length === 0 && currentModId) {
+      try {
+        topicsList = await managerService.getTopicsByModule(currentModId) || [];
+      } catch (e) { }
+    }
+    setFormTopics(topicsList);
+
+    const currentTopicId = q.topicId || topicsList[0]?.id || '';
+    let lessonsList = [];
+    if (currentTopicId) {
+      try {
+        lessonsList = await managerService.getLessonsByTopic(currentTopicId) || [];
+      } catch (e) { }
+    }
+    setFormLessons(lessonsList);
+
+    setQuestionForm({
+      skillId: q.skillId || skills[0]?.id || '',
+      moduleId: currentModId,
+      topicId: currentTopicId,
+      lessonId: q.lessonId || '',
+      content: q.content || '',
+      difficulty: (q.difficulty || 'MEDIUM').toUpperCase(),
+      explanation: q.explanation || '',
+      options: qOptions,
+    });
+    setIsQuestionModalOpen(true);
+  };
+
+  const handleSaveQuestion = async (e) => {
     e.preventDefault();
     if (!selectedBank) return;
     try {
-      await managerService.createQuestion({
-        questionBankId: selectedBank.id,
-        skillId: questionForm.skillId || (skills[0] && skills[0].id),
-        content: questionForm.content,
-        difficulty: questionForm.difficulty,
-        explanation: questionForm.explanation,
-        options: questionForm.options,
-      });
+      if (editingQuestion) {
+        // Update question
+        await managerService.updateQuestion(editingQuestion.id, {
+          skillId: questionForm.skillId || undefined,
+          moduleId: questionForm.moduleId || undefined,
+          topicId: questionForm.topicId || undefined,
+          lessonId: questionForm.lessonId || undefined,
+          content: questionForm.content,
+          difficulty: questionForm.difficulty,
+          explanation: questionForm.explanation,
+          options: questionForm.options,
+        });
+        setSuccessMsg('Cập nhật câu hỏi thành công!');
+      } else {
+        // Create question
+        await managerService.createQuestion({
+          questionBankId: selectedBank.id,
+          skillId: questionForm.skillId || (skills[0] && skills[0].id),
+          moduleId: questionForm.moduleId || undefined,
+          topicId: questionForm.topicId || undefined,
+          lessonId: questionForm.lessonId || undefined,
+          content: questionForm.content,
+          difficulty: questionForm.difficulty,
+          explanation: questionForm.explanation,
+          options: questionForm.options,
+        });
+        setSuccessMsg('Thêm câu hỏi mới thành công!');
+      }
+
       setIsQuestionModalOpen(false);
-      setQuestionForm({
-        skillId: skills[0]?.id || '',
-        content: '',
-        difficulty: 'MEDIUM',
-        explanation: '',
-        options: [
-          { optionContent: '', isCorrect: true, displayOrder: 1 },
-          { optionContent: '', isCorrect: false, displayOrder: 2 },
-          { optionContent: '', isCorrect: false, displayOrder: 3 },
-          { optionContent: '', isCorrect: false, displayOrder: 4 },
-        ],
-      });
-      setSuccessMsg('Thêm câu hỏi mới thành công!');
+      setEditingQuestion(null);
       setTimeout(() => setSuccessMsg(''), 4000);
       loadQuestions(selectedBank.id);
-      // refresh question count
       const updated = await managerService.getQuestionBanks();
       setBanks(updated || []);
     } catch (err) {
-      alert('Lỗi tạo câu hỏi: ' + (err.response?.data?.message || err.message));
+      alert('Lỗi lưu câu hỏi: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -280,7 +433,7 @@ export default function QuestionBankManagerPage() {
           </button>
           {selectedBank && (
             <button
-              onClick={() => setIsQuestionModalOpen(true)}
+              onClick={handleOpenCreateModal}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-xl shadow-xs transition"
             >
               <Plus className="w-4 h-4" />
@@ -320,11 +473,10 @@ export default function QuestionBankManagerPage() {
                   <div
                     key={b.id}
                     onClick={() => handleSelectBank(b)}
-                    className={`group w-full text-left p-3.5 rounded-xl text-sm transition flex flex-col gap-1 cursor-pointer ${
-                      isSelected
+                    className={`group w-full text-left p-3.5 rounded-xl text-sm transition flex flex-col gap-1 cursor-pointer ${isSelected
                         ? 'bg-purple-50 text-purple-900 border border-purple-200 font-semibold shadow-2xs'
                         : 'text-slate-700 hover:bg-slate-50 border border-slate-100'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate flex-1 font-medium">{b.name}</span>
@@ -409,18 +561,39 @@ export default function QuestionBankManagerPage() {
                 )}
               </div>
 
-              {/* Skills dropdown filter (if skills available) */}
-              {skills.length > 0 && (
-                <div className="min-w-[160px]">
+              {/* Module dropdown filter */}
+              {modules.length > 0 && (
+                <div className="min-w-[150px]">
                   <select
-                    value={skillFilter}
-                    onChange={(e) => setSkillFilter(e.target.value)}
+                    value={moduleFilter}
+                    onChange={(e) => {
+                      setModuleFilter(e.target.value);
+                      setTopicFilter('ALL');
+                    }}
                     className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-purple-500"
                   >
-                    <option value="ALL">Tất cả kỹ năng ({skills.length})</option>
-                    {skills.map((skl) => (
-                      <option key={skl.id} value={skl.id}>
-                        {skl.name}
+                    <option value="ALL">Tất cả Module ({modules.length})</option>
+                    {modules.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Topic dropdown filter */}
+              {filterAvailableTopics.length > 0 && (
+                <div className="min-w-[150px]">
+                  <select
+                    value={topicFilter}
+                    onChange={(e) => setTopicFilter(e.target.value)}
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  >
+                    <option value="ALL">Tất cả Topic ({filterAvailableTopics.length})</option>
+                    {filterAvailableTopics.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
                       </option>
                     ))}
                   </select>
@@ -442,16 +615,14 @@ export default function QuestionBankManagerPage() {
                       <button
                         key={tab.key}
                         onClick={() => handleDifficultyFilterChange(tab.key)}
-                        className={`whitespace-nowrap px-2.5 py-1 rounded-lg text-xs font-semibold transition shrink-0 flex items-center gap-1 ${
-                          isActive
+                        className={`whitespace-nowrap px-2.5 py-1 rounded-lg text-xs font-semibold transition shrink-0 flex items-center gap-1 ${isActive
                             ? `bg-white ${tab.color || 'text-purple-700'} shadow-xs font-bold`
                             : 'text-slate-600 hover:text-slate-900'
-                        }`}
+                          }`}
                       >
                         <span>{tab.label}</span>
-                        <span className={`text-[10px] px-1 py-0.2 rounded-full font-medium ${
-                          isActive ? 'bg-slate-100 text-slate-700' : 'text-slate-400'
-                        }`}>
+                        <span className={`text-[10px] px-1 py-0.2 rounded-full font-medium ${isActive ? 'bg-slate-100 text-slate-700' : 'text-slate-400'
+                          }`}>
                           {tab.count}
                         </span>
                       </button>
@@ -517,10 +688,12 @@ export default function QuestionBankManagerPage() {
                   qDiff === 'EASY'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     : qDiff === 'HARD'
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : 'bg-amber-50 text-amber-700 border-amber-200';
+                      ? 'bg-rose-50 text-rose-700 border-rose-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200';
 
                 const skillName = skills.find((s) => s.id === q.skillId)?.name;
+                const moduleName = modules.find((m) => m.id === q.moduleId)?.name;
+                const topicName = modules.flatMap(m => m.topics || []).find(t => t.id === q.topicId)?.name;
 
                 return (
                   <div
@@ -536,30 +709,51 @@ export default function QuestionBankManagerPage() {
                           <div className="font-semibold text-slate-900 text-sm leading-relaxed">
                             {q.content}
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                             <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${diffBadge}`}>
                               {qDiff}
                             </span>
+                            {moduleName && (
+                              <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
+                                <Layers className="w-3 h-3" />
+                                {moduleName}
+                              </span>
+                            )}
+                            {topicName && (
+                              <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                                <BookOpen className="w-3 h-3" />
+                                {topicName}
+                              </span>
+                            )}
                             {skillName && (
                               <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                                 {skillName}
                               </span>
                             )}
                             {q.explanation && (
-                              <span className="text-xs text-slate-500 italic">
+                              <span className="text-xs text-slate-500 italic block sm:inline mt-1 sm:mt-0">
                                 Giải thích: {q.explanation}
                               </span>
                             )}
                           </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteQuestion(q.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shrink-0"
-                        title="Xóa câu hỏi"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleOpenEditModal(q)}
+                          className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                          title="Chỉnh sửa câu hỏi"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuestion(q.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                          title="Xóa câu hỏi"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Options list */}
@@ -570,18 +764,16 @@ export default function QuestionBankManagerPage() {
                         return (
                           <div
                             key={opt.id || optIdx}
-                            className={`p-2.5 rounded-xl text-xs flex items-center gap-2 border ${
-                              isCorrect
+                            className={`p-2.5 rounded-xl text-xs flex items-center gap-2 border ${isCorrect
                                 ? 'bg-emerald-50/90 border-emerald-300 text-emerald-900 font-semibold'
                                 : 'bg-slate-50/70 border-slate-200 text-slate-700'
-                            }`}
+                              }`}
                           >
                             <span
-                              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                                isCorrect
+                              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${isCorrect
                                   ? 'bg-emerald-600 text-white'
                                   : 'bg-slate-200 text-slate-600'
-                              }`}
+                                }`}
                             >
                               {optLetter}
                             </span>
@@ -665,25 +857,85 @@ export default function QuestionBankManagerPage() {
         </div>
       )}
 
-      {/* Create Question Modal */}
+      {/* Create/Edit Question Modal */}
       {isQuestionModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-lg text-slate-900">Soạn thảo Câu hỏi Trắc nghiệm</h3>
+              <h3 className="font-bold text-lg text-slate-900">
+                {editingQuestion ? 'Chỉnh sửa Câu hỏi Trắc nghiệm' : 'Soạn thảo Câu hỏi Trắc nghiệm Mới'}
+              </h3>
               <button onClick={() => setIsQuestionModalOpen(false)} className="text-slate-400 p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleCreateQuestion} className="py-4 space-y-4">
+            <form onSubmit={handleSaveQuestion} className="py-4 space-y-4">
+              {/* Module, Topic, Lesson selection */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Phân bổ vào cấu trúc Môn học</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Module</label>
+                    <select
+                      value={questionForm.moduleId}
+                      onChange={(e) => setQuestionForm({ ...questionForm, moduleId: e.target.value })}
+                      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:ring-1 focus:ring-purple-500"
+                    >
+                      <option value="">-- Không chọn --</option>
+                      {modules.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Topic</label>
+                    <select
+                      value={questionForm.topicId}
+                      onChange={(e) => setQuestionForm({ ...questionForm, topicId: e.target.value })}
+                      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:ring-1 focus:ring-purple-500"
+                      disabled={!questionForm.moduleId}
+                    >
+                      <option value="">-- Không chọn --</option>
+                      {formTopics.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Bài học (Lesson)</label>
+                    <select
+                      value={questionForm.lessonId}
+                      onChange={(e) => setQuestionForm({ ...questionForm, lessonId: e.target.value })}
+                      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:ring-1 focus:ring-purple-500"
+                      disabled={!questionForm.topicId}
+                    >
+                      <option value="">-- Không chọn --</option>
+                      {formLessons.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Kỹ năng đánh giá *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Kỹ năng đánh giá</label>
                   <select
                     value={questionForm.skillId}
                     onChange={(e) => setQuestionForm({ ...questionForm, skillId: e.target.value })}
                     className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2"
                   >
+                    <option value="">-- Không chọn kỹ năng --</option>
                     {skills.map((skl) => (
                       <option key={skl.id} value={skl.id}>
                         {skl.name}
@@ -741,11 +993,10 @@ export default function QuestionBankManagerPage() {
                         placeholder={`Lựa chọn ${letter}`}
                         value={opt.optionContent}
                         onChange={(e) => handleOptionChange(idx, e.target.value)}
-                        className={`flex-1 text-sm rounded-xl px-3 py-2 border ${
-                          opt.isCorrect
+                        className={`flex-1 text-sm rounded-xl px-3 py-2 border ${opt.isCorrect
                             ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold'
                             : 'bg-slate-50 border-slate-200 text-slate-800'
-                        }`}
+                          }`}
                       />
                     </div>
                   );
@@ -775,7 +1026,7 @@ export default function QuestionBankManagerPage() {
                   type="submit"
                   className="px-5 py-2 text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-xs"
                 >
-                  Lưu câu hỏi
+                  {editingQuestion ? 'Lưu thay đổi' : 'Tạo câu hỏi'}
                 </button>
               </div>
             </form>

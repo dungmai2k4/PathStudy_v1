@@ -77,6 +77,11 @@ const managerService = {
     return response.data.data;
   },
 
+  getLessonById: async (id) => {
+    const response = await api.get(`/api/v1/content/lessons/${id}`);
+    return response.data.data;
+  },
+
   createLesson: async (data) => {
     const response = await api.post('/api/v1/content/lessons', data);
     return response.data.data;
@@ -89,6 +94,48 @@ const managerService = {
 
   deleteLesson: async (id) => {
     const response = await api.delete(`/api/v1/content/lessons/${id}`);
+    return response.data;
+  },
+
+  // --- Example APIs ---
+  getExamplesByLesson: async (lessonId) => {
+    const response = await api.get(`/api/v1/content/lessons/${lessonId}/examples`);
+    return response.data.data;
+  },
+
+  createExample: async (lessonId, data) => {
+    const response = await api.post(`/api/v1/content/lessons/${lessonId}/examples`, data);
+    return response.data.data;
+  },
+
+  updateExample: async (id, data) => {
+    const response = await api.put(`/api/v1/content/lessons/examples/${id}`, data);
+    return response.data.data;
+  },
+
+  deleteExample: async (id) => {
+    const response = await api.delete(`/api/v1/content/lessons/examples/${id}`);
+    return response.data;
+  },
+
+  // --- MiniQuiz APIs ---
+  getMiniQuizzesByLesson: async (lessonId) => {
+    const response = await api.get(`/api/v1/content/lessons/${lessonId}/mini-quizzes`);
+    return response.data.data;
+  },
+
+  createMiniQuiz: async (lessonId, data) => {
+    const response = await api.post(`/api/v1/content/lessons/${lessonId}/mini-quizzes`, data);
+    return response.data.data;
+  },
+
+  updateMiniQuiz: async (id, data) => {
+    const response = await api.put(`/api/v1/content/lessons/mini-quizzes/${id}`, data);
+    return response.data.data;
+  },
+
+  deleteMiniQuiz: async (id) => {
+    const response = await api.delete(`/api/v1/content/lessons/mini-quizzes/${id}`);
     return response.data;
   },
 
@@ -139,7 +186,9 @@ const managerService = {
   getQuestionsForManager: async (params = {}) => {
     const query = new URLSearchParams();
     if (params.questionBankId) query.append('questionBankId', params.questionBankId);
-    if (params.skillId) query.append('skillId', params.skillId);
+    if (params.skillId && params.skillId !== 'ALL') query.append('skillId', params.skillId);
+    if (params.moduleId && params.moduleId !== 'ALL') query.append('moduleId', params.moduleId);
+    if (params.topicId && params.topicId !== 'ALL') query.append('topicId', params.topicId);
     if (params.difficulty && params.difficulty !== 'ALL') query.append('difficulty', params.difficulty);
 
     const response = await api.get(`/api/v1/questions/manage?${query.toString()}`);
