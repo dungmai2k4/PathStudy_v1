@@ -54,37 +54,77 @@ public class AssessmentService {
     public AssessmentTestDto generatePlacementTest(UUID subjectId, UUID studentId) {
         log.info("Generating placement test for subject: {} and student: {}", subjectId, studentId);
 
-        // Fetch questions for each of the 6 skills
+        // Fetch dynamic modules & topics from content-service
+        List<Map<String, Object>> dynamicTopics = fetchTopicsForSubject(subjectId);
         List<Map<String, Object>> chosenQuestions = new ArrayList<>();
 
-        for (Map.Entry<UUID, String> entry : ENGLISH_SKILLS.entrySet()) {
-            UUID skillId = entry.getKey();
-            String skillName = entry.getValue();
+        if (!dynamicTopics.isEmpty()) {
+            log.info("Found {} dynamic topics for subject {}", dynamicTopics.size(), subjectId);
+            // Collect questions per topic (1-2 questions per topic)
+            int questionsPerTopic = dynamicTopics.size() <= 7 ? 2 : 1;
+            for (Map<String, Object> topic : dynamicTopics) {
+                UUID topicId = UUID.fromString((String) topic.get("id"));
+                String topicName = (String) topic.get("name");
 
-            List<Map<String, Object>> skillQuestions = fetchQuestionsForSkill(skillId);
-            if (!skillQuestions.isEmpty()) {
-                // Shuffle questions for this skill to ensure randomness across tests
-                List<Map<String, Object>> shuffled = new ArrayList<>(skillQuestions);
-                Collections.shuffle(shuffled);
-                // Take 2 questions per skill (total 12 questions)
-                int take = Math.min(2, shuffled.size());
-                for (int i = 0; i < take; i++) {
-                    Map<String, Object> q = shuffled.get(i);
-                    q.put("resolvedSkillName", skillName);
-                    chosenQuestions.add(q);
+                List<Map<String, Object>> topicQuestions = fetchQuestionsForTopic(topicId);
+                if (topicQuestions.isEmpty()) {
+                    topicQuestions = fetchQuestionsForSkill(topicId);
+                }
+
+                if (!topicQuestions.isEmpty()) {
+                    List<Map<String, Object>> shuffled = new ArrayList<>(topicQuestions);
+                    Collections.shuffle(shuffled);
+                    int take = Math.min(questionsPerTopic, shuffled.size());
+                    for (int i = 0; i < take; i++) {
+                        Map<String, Object> q = shuffled.get(i);
+                        q.put("resolvedSkillName", topicName);
+                        q.put("skillId", topicId.toString());
+                        q.put("topicId", topicId.toString());
+                        chosenQuestions.add(q);
+                    }
                 }
             }
         }
 
-        // Shuffle all selected questions so order is randomized across skills (not sequential by skill or DB order)
+        // Fallback: If no dynamic topic questions found, fetch from ENGLISH_SKILLS or all questions by subject
+        if (chosenQuestions.isEmpty()) {
+            log.warn("No questions from dynamic topics. Falling back to subject/skill queries.");
+            List<Map<String, Object>> subjectQuestions = fetchQuestionsForSubject(subjectId);
+            if (!subjectQuestions.isEmpty()) {
+                List<Map<String, Object>> shuffled = new ArrayList<>(subjectQuestions);
+                Collections.shuffle(shuffled);
+                int take = Math.min(12, shuffled.size());
+                chosenQuestions.addAll(shuffled.subList(0, take));
+            } else {
+                for (Map.Entry<UUID, String> entry : ENGLISH_SKILLS.entrySet()) {
+                    UUID skillId = entry.getKey();
+                    String skillName = entry.getValue();
+                    List<Map<String, Object>> skillQuestions = fetchQuestionsForSkill(skillId);
+                    if (!skillQuestions.isEmpty()) {
+                        List<Map<String, Object>> shuffled = new ArrayList<>(skillQuestions);
+                        Collections.shuffle(shuffled);
+                        int take = Math.min(2, shuffled.size());
+                        for (int i = 0; i < take; i++) {
+                            Map<String, Object> q = shuffled.get(i);
+                            q.put("resolvedSkillName", skillName);
+                            chosenQuestions.add(q);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Shuffle all selected questions so order is randomized across topics/skills
         Collections.shuffle(chosenQuestions);
+
+        int timeLimit = Math.max(10, chosenQuestions.size()); // 1 min per question
 
         // Create Assessment Entity
         AssessmentEntity assessment = AssessmentEntity.builder()
                 .subjectId(subjectId)
                 .title("Khảo sát Năng lực Đầu vào Tiếng Anh THPT")
                 .type("PLACEMENT")
-                .timeLimitMinutes(12) // 12 minutes for 12 questions
+                .timeLimitMinutes(timeLimit)
                 .totalQuestions(chosenQuestions.size())
                 .passingScorePercentage(60)
                 .build();
@@ -583,6 +623,44 @@ public class AssessmentService {
         return assessmentAttemptRepository
                 .findFirstByStudentIdAndSubjectIdAndAssessmentTypeOrderByCreatedAtDesc(studentId, subjectId, "PLACEMENT")
                 .orElse(null);
+    }
+
+    private List<Map<String, Object>> fetchTopicsForSubject(UUID subjectId) {
+        List<Map<String, Object>> topics = new ArrayList<>();
+        try {
+            String url = contentServiceUrl + "/api/v1/content/subjects/" + subjectId + "/modules";
+            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            if (resp.getBody() != null && resp.getBody().get("data") != null) {
+                List<Map<String, Object>> modules = (List<Map<String, Object>>) resp.getBody().get("data");
+                for (Map<String, Object> mod : modules) {
+                    List<Map<String, Object>> modTopics = (List<Map<String, Object>>) mod.get("topics");
+                    if (modTopics != null && !modTopics.isEmpty()) {
+                        topics.addAll(modTopics);
+                    } else if (mod.get("id") != null) {
+                        try {
+                            String tUrl = contentServiceUrl + "/api/v1/content/modules/" + mod.get("id") + "/topics";
+                            ResponseEntity<Map<String, Object>> tResp = restTemplate.exchange(
+                                    tUrl,
+                                    HttpMethod.GET,
+                                    null,
+                                    new ParameterizedTypeReference<Map<String, Object>>() {}
+                            );
+                            if (tResp.getBody() != null && tResp.getBody().get("data") != null) {
+                                topics.addAll((List<Map<String, Object>>) tResp.getBody().get("data"));
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error fetching topics for subject {}: {}", subjectId, e.getMessage());
+        }
+        return topics;
     }
 
     private List<Map<String, Object>> fetchQuestionsForSkill(UUID skillId) {

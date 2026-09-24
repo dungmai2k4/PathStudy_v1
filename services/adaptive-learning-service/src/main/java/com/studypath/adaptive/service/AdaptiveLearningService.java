@@ -37,6 +37,9 @@ public class AdaptiveLearningService {
     @Value("${app.services.assessment-url:http://localhost:8084}")
     private String assessmentServiceUrl;
 
+    @Value("${app.services.content-url:http://localhost:8082}")
+    private String contentServiceUrl;
+
     // Fixed UUIDs for English Skills — canonical order (used as fallback for unknown skills)
     private static final Map<UUID, String> ENGLISH_SKILLS = new LinkedHashMap<>();
     static {
@@ -92,56 +95,108 @@ public class AdaptiveLearningService {
             }
         }
 
-        // Log the accuracy map for debugging
-        log.info("=== SKILL ACCURACY MAP ===");
-        for (Map.Entry<UUID, String> entry : ENGLISH_SKILLS.entrySet()) {
-            int acc = skillAccuracies.getOrDefault(entry.getKey(), -1);
-            log.info("  Skill [{}] '{}': accuracy={}%", entry.getKey(), entry.getValue(), acc == -1 ? "NOT_ASSESSED(default 50)" : acc);
+        // Fetch dynamic modules with topics from content-service
+        List<Map<String, Object>> dynamicModules = fetchModulesWithTopics(request.getSubjectId());
+        
+        // Flatten topics with module context
+        // Each entry: topicId -> { topicName, moduleId, moduleName, displayOrder }
+        class TopicContext {
+            UUID topicId;
+            String topicName;
+            UUID moduleId;
+            String moduleName;
+            int displayOrder;
+            TopicContext(UUID topicId, String topicName, UUID moduleId, String moduleName, int displayOrder) {
+                this.topicId = topicId;
+                this.topicName = topicName;
+                this.moduleId = moduleId;
+                this.moduleName = moduleName;
+                this.displayOrder = displayOrder;
+            }
         }
-
-        // ===== STEP 2: Rule-Based Adaptive Algorithm — 3 groups, sorted by accuracy ascending within each group =====
-        // Group 1 — NEEDS_IMPROVEMENT: accuracy < 60% (Learn these FIRST to fix weak foundations!)
-        // Group 2 — PROFICIENT:        accuracy 60–84% (Reinforce & polish)
-        // Group 3 — MASTERY:           accuracy >= 85% (Review & extend at the end)
-        List<Map.Entry<UUID, String>> needsImprovement = new ArrayList<>();
-        List<Map.Entry<UUID, String>> proficient = new ArrayList<>();
-        List<Map.Entry<UUID, String>> mastery = new ArrayList<>();
-
-        for (Map.Entry<UUID, String> entry : ENGLISH_SKILLS.entrySet()) {
-            int acc = skillAccuracies.getOrDefault(entry.getKey(), 50);
-            if (acc < 60) {
-                needsImprovement.add(entry);
-            } else if (acc < 85) {
-                proficient.add(entry);
-            } else {
-                mastery.add(entry);
+        
+        List<TopicContext> allTopics = new ArrayList<>();
+        if (!dynamicModules.isEmpty()) {
+            for (Map<String, Object> mod : dynamicModules) {
+                UUID mId = UUID.fromString((String) mod.get("id"));
+                String mName = (String) mod.get("name");
+                List<Map<String, Object>> topics = (List<Map<String, Object>>) mod.get("topics");
+                if (topics != null) {
+                    for (Map<String, Object> top : topics) {
+                        UUID tId = UUID.fromString((String) top.get("id"));
+                        String tName = (String) top.get("name");
+                        int dOrder = top.get("displayOrder") != null ? ((Number) top.get("displayOrder")).intValue() : 0;
+                        allTopics.add(new TopicContext(tId, tName, mId, mName, dOrder));
+                    }
+                }
             }
         }
 
-        // Sort within each group: lowest accuracy first (most critical gap first)
-        Comparator<Map.Entry<UUID, String>> byAccuracyAsc =
-                Comparator.comparingInt(e -> skillAccuracies.getOrDefault(e.getKey(), 50));
+        // Fallback: If no dynamic topics found, fallback to ENGLISH_SKILLS
+        if (allTopics.isEmpty()) {
+            UUID grammarModId = UUID.fromString("22222222-2222-2222-2222-222222222210");
+            UUID vocabModId = UUID.fromString("22222222-2222-2222-2222-222222222220");
+            for (Map.Entry<UUID, String> entry : ENGLISH_SKILLS.entrySet()) {
+                UUID sId = entry.getKey();
+                boolean isGrammar = sId.toString().endsWith("01") || sId.toString().endsWith("02") || sId.toString().endsWith("03") || sId.toString().endsWith("04");
+                allTopics.add(new TopicContext(
+                        sId,
+                        entry.getValue(),
+                        isGrammar ? grammarModId : vocabModId,
+                        isGrammar ? "Ngữ pháp (Grammar)" : "Từ vựng (Vocabulary)",
+                        0
+                ));
+            }
+        }
+
+        // Log the accuracy map for debugging
+        log.info("=== SKILL/TOPIC ACCURACY MAP ({} topics) ===", allTopics.size());
+        for (TopicContext tc : allTopics) {
+            int acc = skillAccuracies.getOrDefault(tc.topicId, -1);
+            log.info("  Topic [{}] '{}' (Module: '{}'): accuracy={}%", tc.topicId, tc.topicName, tc.moduleName, acc == -1 ? "NOT_ASSESSED(default 50)" : acc);
+        }
+
+        // ===== STEP 2: Rule-Based Adaptive Algorithm per topic =====
+        // Group by accuracy: NEEDS_IMPROVEMENT (<60%), PROFICIENT (60-84%), MASTERY (>=85%)
+        List<TopicContext> needsImprovement = new ArrayList<>();
+        List<TopicContext> proficient = new ArrayList<>();
+        List<TopicContext> mastery = new ArrayList<>();
+
+        for (TopicContext tc : allTopics) {
+            int acc = skillAccuracies.getOrDefault(tc.topicId, 50);
+            if (acc < 60) {
+                needsImprovement.add(tc);
+            } else if (acc < 85) {
+                proficient.add(tc);
+            } else {
+                mastery.add(tc);
+            }
+        }
+
+        // Sort within each group: lowest accuracy first
+        Comparator<TopicContext> byAccuracyAsc =
+                Comparator.comparingInt(tc -> skillAccuracies.getOrDefault(tc.topicId, 50));
         needsImprovement.sort(byAccuracyAsc);
         proficient.sort(byAccuracyAsc);
         mastery.sort(byAccuracyAsc);
 
-        // Final ordered list: weak → moderate → strong
-        List<Map.Entry<UUID, String>> sortedSkills = new ArrayList<>();
-        sortedSkills.addAll(needsImprovement);
-        sortedSkills.addAll(proficient);
-        sortedSkills.addAll(mastery);
+        // Final ordered list: weak -> moderate -> strong
+        List<TopicContext> sortedTopics = new ArrayList<>();
+        sortedTopics.addAll(needsImprovement);
+        sortedTopics.addAll(proficient);
+        sortedTopics.addAll(mastery);
 
         log.info("=== ADAPTIVE ROADMAP ORDER ===");
-        for (int i = 0; i < sortedSkills.size(); i++) {
-            Map.Entry<UUID, String> e = sortedSkills.get(i);
-            int acc = skillAccuracies.getOrDefault(e.getKey(), 50);
-            log.info("  #{}: '{}' — {}% ({})", i + 1, e.getValue(), acc,
-                    acc < 60 ? "NEEDS_IMPROVEMENT → ưu tiên đầu" : acc < 85 ? "PROFICIENT" : "MASTERY");
+        for (int i = 0; i < sortedTopics.size(); i++) {
+            TopicContext tc = sortedTopics.get(i);
+            int acc = skillAccuracies.getOrDefault(tc.topicId, 50);
+            log.info("  #{}: [{}] '{}' — {}% ({})", i + 1, tc.moduleName, tc.topicName, acc,
+                    acc < 60 ? "NEEDS_IMPROVEMENT -> ưu tiên đầu" : acc < 85 ? "PROFICIENT" : "MASTERY");
         }
 
         // ===== STEP 3: Save/update SkillProfile records =====
-        for (Map.Entry<UUID, String> entry : ENGLISH_SKILLS.entrySet()) {
-            UUID sId = entry.getKey();
+        for (TopicContext tc : allTopics) {
+            UUID sId = tc.topicId;
             int acc = skillAccuracies.getOrDefault(sId, 50);
             String level = skillProficiencies.getOrDefault(sId,
                     acc >= 85 ? "MASTERY" : acc >= 60 ? "PROFICIENT" : "NEEDS_IMPROVEMENT");
@@ -152,7 +207,7 @@ public class AdaptiveLearningService {
                             .subjectId(request.getSubjectId())
                             .skillId(sId)
                             .build());
-            profile.setSkillName(entry.getValue());
+            profile.setSkillName(tc.topicName);
             profile.setAccuracyPercentage(acc);
             profile.setMasteryLevel(level);
             skillProfileRepository.save(profile);
@@ -167,7 +222,7 @@ public class AdaptiveLearningService {
                         .build());
 
         studyPath.setAssessmentAttemptId(request.getAssessmentAttemptId());
-        studyPath.setTotalSkills(sortedSkills.size());
+        studyPath.setTotalSkills(sortedTopics.size());
         studyPath.setCompletedSkills(0);
         studyPath.setProgressPercentage(0);
         studyPath.setStatus("ACTIVE");
@@ -181,22 +236,17 @@ public class AdaptiveLearningService {
         Set<UUID> unlockedModules = new HashSet<>();
         int seq = 1;
 
-        for (Map.Entry<UUID, String> entry : sortedSkills) {
-            UUID sId = entry.getKey();
-            String sName = entry.getValue();
+        for (TopicContext tc : sortedTopics) {
+            UUID sId = tc.topicId;
+            String sName = tc.topicName;
             int baseline = skillAccuracies.getOrDefault(sId, 50);
             String profLevel = skillProficiencies.getOrDefault(sId,
                     baseline >= 85 ? "MASTERY" : baseline >= 60 ? "PROFICIENT" : "NEEDS_IMPROVEMENT");
 
-            // Generate adaptive priority reason to display in UI
-            String reason = buildPriorityReason(baseline, profLevel, seq, sortedSkills.size());
+            String reason = buildPriorityReason(baseline, profLevel, seq, sortedTopics.size());
 
-            // Determine module info
-            UUID grammarModId = UUID.fromString("22222222-2222-2222-2222-222222222210");
-            UUID vocabModId = UUID.fromString("22222222-2222-2222-2222-222222222220");
-            boolean isGrammar = sId.toString().endsWith("01") || sId.toString().endsWith("02") || sId.toString().endsWith("03") || sId.toString().endsWith("04");
-            UUID modId = isGrammar ? grammarModId : vocabModId;
-            String modName = isGrammar ? "Ngữ pháp (Grammar)" : "Từ vựng (Vocabulary)";
+            UUID modId = tc.moduleId;
+            String modName = tc.moduleName;
 
             // Each module is independent: unlock the first topic of each module
             boolean isFirstInModule = unlockedModules.add(modId);
@@ -243,7 +293,7 @@ public class AdaptiveLearningService {
             seq++;
         }
 
-        log.info("=== STUDY PATH GENERATED SUCCESSFULLY: {} nodes ===", nodeDtos.size());
+        log.info("=== STUDY PATH GENERATED SUCCESSFULLY: {} nodes across {} modules ===", nodeDtos.size(), unlockedModules.size());
 
         return StudyPathDto.builder()
                 .id(studyPath.getId())
@@ -516,5 +566,41 @@ public class AdaptiveLearningService {
         studyPathRepository.save(path);
 
         return getMyStudyPath(request.getStudentId(), request.getSubjectId());
+    }
+
+    private List<Map<String, Object>> fetchModulesWithTopics(UUID subjectId) {
+        try {
+            String url = contentServiceUrl + "/api/v1/content/subjects/" + subjectId + "/modules";
+            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            if (resp.getBody() != null && resp.getBody().get("data") != null) {
+                List<Map<String, Object>> modules = (List<Map<String, Object>>) resp.getBody().get("data");
+                for (Map<String, Object> mod : modules) {
+                    List<Map<String, Object>> topics = (List<Map<String, Object>>) mod.get("topics");
+                    if (topics == null || topics.isEmpty()) {
+                        try {
+                            String tUrl = contentServiceUrl + "/api/v1/content/modules/" + mod.get("id") + "/topics";
+                            ResponseEntity<Map<String, Object>> tResp = restTemplate.exchange(
+                                    tUrl,
+                                    HttpMethod.GET,
+                                    null,
+                                    new ParameterizedTypeReference<Map<String, Object>>() {}
+                            );
+                            if (tResp.getBody() != null && tResp.getBody().get("data") != null) {
+                                mod.put("topics", tResp.getBody().get("data"));
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+                return modules;
+            }
+        } catch (Exception e) {
+            log.warn("Error fetching modules from content-service for subject {}: {}", subjectId, e.getMessage());
+        }
+        return Collections.emptyList();
     }
 }
