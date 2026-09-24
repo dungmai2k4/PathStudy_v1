@@ -21,6 +21,7 @@ public class CreateLessonRequest {
     private String content;
 
     private String videoUrl;
+    private String theorySummary;
     private Integer displayOrder;
     private Boolean isRemedial;
 }

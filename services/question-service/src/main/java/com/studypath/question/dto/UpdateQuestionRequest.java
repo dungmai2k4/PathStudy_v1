@@ -15,6 +15,7 @@ public class UpdateQuestionRequest {
     private UUID skillId;
     private UUID moduleId;
     private UUID topicId;
+    private UUID lessonId;
 
     @NotBlank(message = "Content is required")
     private String content;

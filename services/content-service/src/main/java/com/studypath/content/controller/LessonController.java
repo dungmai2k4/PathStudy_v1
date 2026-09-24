@@ -53,4 +53,38 @@ public class LessonController {
         contentService.deleteLesson(id);
         return ApiResponse.ok("Xóa bài học thành công");
     }
+
+    // --- Examples CRUD ---
+    @PostMapping("/{id}/examples")
+    public ApiResponse<ExampleDto> createExample(@PathVariable("id") UUID lessonId, @RequestBody ExampleDto dto) {
+        return ApiResponse.ok("Thêm ví dụ thành công", contentService.createExample(lessonId, dto));
+    }
+
+    @PutMapping("/examples/{exampleId}")
+    public ApiResponse<ExampleDto> updateExample(@PathVariable("exampleId") UUID exampleId, @RequestBody ExampleDto dto) {
+        return ApiResponse.ok("Cập nhật ví dụ thành công", contentService.updateExample(exampleId, dto));
+    }
+
+    @DeleteMapping("/examples/{exampleId}")
+    public ApiResponse<String> deleteExample(@PathVariable("exampleId") UUID exampleId) {
+        contentService.deleteExample(exampleId);
+        return ApiResponse.ok("Xóa ví dụ thành công");
+    }
+
+    // --- MiniQuizzes CRUD ---
+    @PostMapping("/{id}/mini-quizzes")
+    public ApiResponse<MiniQuizDto> createMiniQuiz(@PathVariable("id") UUID lessonId, @RequestBody MiniQuizDto dto) {
+        return ApiResponse.ok("Thêm bài kiểm tra thành công", contentService.createMiniQuiz(lessonId, dto));
+    }
+
+    @PutMapping("/mini-quizzes/{quizId}")
+    public ApiResponse<MiniQuizDto> updateMiniQuiz(@PathVariable("quizId") UUID quizId, @RequestBody MiniQuizDto dto) {
+        return ApiResponse.ok("Cập nhật bài kiểm tra thành công", contentService.updateMiniQuiz(quizId, dto));
+    }
+
+    @DeleteMapping("/mini-quizzes/{quizId}")
+    public ApiResponse<String> deleteMiniQuiz(@PathVariable("quizId") UUID quizId) {
+        contentService.deleteMiniQuiz(quizId);
+        return ApiResponse.ok("Xóa bài kiểm tra thành công");
+    }
 }

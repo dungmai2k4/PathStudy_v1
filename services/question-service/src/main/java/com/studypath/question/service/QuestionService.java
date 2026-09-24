@@ -79,25 +79,29 @@ public class QuestionService {
 
     @Transactional(readOnly = true)
     public List<QuestionDto> getQuestions(UUID questionBankId, UUID skillId, String difficulty) {
-        return fetchQuestions(questionBankId, skillId, difficulty, false);
+        return fetchQuestions(questionBankId, skillId, null, null, difficulty, false);
     }
 
     @Transactional(readOnly = true)
     public List<QuestionDto> getQuestions(UUID questionBankId, UUID skillId, String difficulty, boolean includeAnswer) {
-        return fetchQuestions(questionBankId, skillId, difficulty, includeAnswer);
+        return fetchQuestions(questionBankId, skillId, null, null, difficulty, includeAnswer);
     }
 
     @Transactional(readOnly = true)
-    public List<QuestionDto> getQuestionsForManager(UUID questionBankId, UUID skillId, String difficulty) {
-        return fetchQuestions(questionBankId, skillId, difficulty, true);
+    public List<QuestionDto> getQuestionsForManager(UUID questionBankId, UUID skillId, UUID moduleId, UUID topicId, String difficulty) {
+        return fetchQuestions(questionBankId, skillId, moduleId, topicId, difficulty, true);
     }
 
-    private List<QuestionDto> fetchQuestions(UUID questionBankId, UUID skillId, String difficulty, boolean includeAnswer) {
+    private List<QuestionDto> fetchQuestions(UUID questionBankId, UUID skillId, UUID moduleId, UUID topicId, String difficulty, boolean includeAnswer) {
         List<QuestionEntity> questions;
 
         boolean hasDiff = difficulty != null && !difficulty.isBlank() && !"ALL".equalsIgnoreCase(difficulty);
 
-        if (questionBankId != null && hasDiff) {
+        if (questionBankId != null && topicId != null) {
+            questions = questionRepository.findByQuestionBankIdAndTopicId(questionBankId, topicId);
+        } else if (questionBankId != null && moduleId != null) {
+            questions = questionRepository.findByQuestionBankIdAndModuleId(questionBankId, moduleId);
+        } else if (questionBankId != null && hasDiff) {
             questions = questionRepository.findByQuestionBankIdAndDifficulty(questionBankId, difficulty.toUpperCase());
         } else if (questionBankId != null) {
             questions = questionRepository.findByQuestionBankId(questionBankId);
@@ -105,6 +109,10 @@ public class QuestionService {
             questions = questionRepository.findBySkillIdAndDifficulty(skillId, difficulty.toUpperCase());
         } else if (skillId != null) {
             questions = questionRepository.findBySkillId(skillId);
+        } else if (topicId != null) {
+            questions = questionRepository.findByTopicId(topicId);
+        } else if (moduleId != null) {
+            questions = questionRepository.findByModuleId(moduleId);
         } else if (hasDiff) {
             questions = questionRepository.findByDifficulty(difficulty.toUpperCase());
         } else {
@@ -113,6 +121,8 @@ public class QuestionService {
 
         return questions.stream()
                 .filter(q -> skillId == null || (q.getSkillId() != null && q.getSkillId().equals(skillId)))
+                .filter(q -> moduleId == null || (q.getModuleId() != null && q.getModuleId().equals(moduleId)))
+                .filter(q -> topicId == null || (q.getTopicId() != null && q.getTopicId().equals(topicId)))
                 .filter(q -> !hasDiff || (q.getDifficulty() != null && q.getDifficulty().equalsIgnoreCase(difficulty)))
                 .map(q -> toQuestionDto(q, includeAnswer))
                 .collect(Collectors.toList());
@@ -196,6 +206,7 @@ public class QuestionService {
         if (request.getSkillId() != null) question.setSkillId(request.getSkillId());
         if (request.getModuleId() != null) question.setModuleId(request.getModuleId());
         if (request.getTopicId() != null) question.setTopicId(request.getTopicId());
+        if (request.getLessonId() != null) question.setLessonId(request.getLessonId());
         if (request.getDifficulty() != null) question.setDifficulty(request.getDifficulty().toUpperCase());
         if (request.getExplanation() != null) question.setExplanation(request.getExplanation());
         if (request.getStatus() != null) question.setStatus(request.getStatus());

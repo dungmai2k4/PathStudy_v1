@@ -47,7 +47,7 @@ public class ContentService {
     }
 
     public SubjectDto getSubjectByCode(String code) {
-        return subjectRepository.findByCode(code)
+        return subjectRepository.findByCodeIgnoreCase(code)
                 .map(this::toSubjectDto)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy môn học với mã: " + code));
     }
@@ -379,6 +379,7 @@ public class ContentService {
                 .topicId(request.getTopicId())
                 .title(request.getTitle().trim())
                 .content(request.getContent())
+                .theorySummary(request.getTheorySummary())
                 .isRemedial(Boolean.TRUE.equals(request.getIsRemedial()))
                 .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
                 .status("ACTIVE")
@@ -393,6 +394,7 @@ public class ContentService {
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy bài học với ID: " + id));
         entity.setTitle(request.getTitle());
         entity.setContent(request.getContent());
+        if (request.getTheorySummary() != null) entity.setTheorySummary(request.getTheorySummary());
         if (request.getSkillId() != null) entity.setSkillId(request.getSkillId());
         if (request.getTopicId() != null) entity.setTopicId(request.getTopicId());
         if (request.getDisplayOrder() != null) entity.setDisplayOrder(request.getDisplayOrder());
@@ -404,6 +406,70 @@ public class ContentService {
     @Transactional
     public void deleteLesson(UUID id) {
         lessonRepository.deleteById(id);
+    }
+
+    // --- Example CRUD APIs ---
+    @Transactional
+    public ExampleDto createExample(UUID lessonId, ExampleDto dto) {
+        ExampleEntity entity = ExampleEntity.builder()
+                .lessonId(lessonId)
+                .title(dto.getTitle() != null ? dto.getTitle().trim() : "Ví dụ minh họa")
+                .content(dto.getContent() != null ? dto.getContent().trim() : "")
+                .explanation(dto.getExplanation())
+                .translation(dto.getTranslation())
+                .displayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 0)
+                .build();
+        entity = exampleRepository.save(entity);
+        return toExampleDto(entity);
+    }
+
+    @Transactional
+    public ExampleDto updateExample(UUID exampleId, ExampleDto dto) {
+        ExampleEntity entity = exampleRepository.findById(exampleId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ví dụ với ID: " + exampleId));
+        if (dto.getTitle() != null) entity.setTitle(dto.getTitle().trim());
+        if (dto.getContent() != null) entity.setContent(dto.getContent().trim());
+        if (dto.getExplanation() != null) entity.setExplanation(dto.getExplanation());
+        if (dto.getTranslation() != null) entity.setTranslation(dto.getTranslation());
+        if (dto.getDisplayOrder() != null) entity.setDisplayOrder(dto.getDisplayOrder());
+        entity = exampleRepository.save(entity);
+        return toExampleDto(entity);
+    }
+
+    @Transactional
+    public void deleteExample(UUID exampleId) {
+        exampleRepository.deleteById(exampleId);
+    }
+
+    // --- MiniQuiz CRUD APIs ---
+    @Transactional
+    public MiniQuizDto createMiniQuiz(UUID lessonId, MiniQuizDto dto) {
+        MiniQuizEntity entity = MiniQuizEntity.builder()
+                .lessonId(lessonId)
+                .title(dto.getTitle() != null ? dto.getTitle().trim() : "Kiểm tra nhanh")
+                .description(dto.getDescription())
+                .questionsJson(dto.getQuestionsJson() != null ? dto.getQuestionsJson() : "[]")
+                .status("ACTIVE")
+                .build();
+        entity = miniQuizRepository.save(entity);
+        return toMiniQuizDto(entity);
+    }
+
+    @Transactional
+    public MiniQuizDto updateMiniQuiz(UUID quizId, MiniQuizDto dto) {
+        MiniQuizEntity entity = miniQuizRepository.findById(quizId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy quiz với ID: " + quizId));
+        if (dto.getTitle() != null) entity.setTitle(dto.getTitle().trim());
+        if (dto.getDescription() != null) entity.setDescription(dto.getDescription());
+        if (dto.getQuestionsJson() != null) entity.setQuestionsJson(dto.getQuestionsJson());
+        if (dto.getStatus() != null) entity.setStatus(dto.getStatus());
+        entity = miniQuizRepository.save(entity);
+        return toMiniQuizDto(entity);
+    }
+
+    @Transactional
+    public void deleteMiniQuiz(UUID quizId) {
+        miniQuizRepository.deleteById(quizId);
     }
 
     // --- Mappers ---

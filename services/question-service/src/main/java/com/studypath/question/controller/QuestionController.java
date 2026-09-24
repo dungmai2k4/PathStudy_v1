@@ -71,10 +71,12 @@ public class QuestionController {
     public ApiResponse<List<QuestionDto>> getQuestionsForManager(
             @RequestParam(name = "questionBankId", required = false) UUID questionBankId,
             @RequestParam(name = "skillId", required = false) UUID skillId,
+            @RequestParam(name = "moduleId", required = false) UUID moduleId,
+            @RequestParam(name = "topicId", required = false) UUID topicId,
             @RequestParam(name = "difficulty", required = false) String difficulty
     ) {
         return ApiResponse.ok("Lấy danh sách câu hỏi quản trị thành công",
-                questionService.getQuestionsForManager(questionBankId, skillId, difficulty));
+                questionService.getQuestionsForManager(questionBankId, skillId, moduleId, topicId, difficulty));
     }
 
     @GetMapping("/manage/{id}")
